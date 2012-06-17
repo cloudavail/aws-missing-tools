@@ -1,0 +1,47 @@
+Format:
+Test Procedure Name:
+Last Tested Date: <Date, in format YYYY-MM-DD>
+Last Tested Version: <Version Number>
+Result: <Pass/Fail>
+
+1.1 ASG Selection:
+Last Tested Date: 2011-11-14
+Last Tested Version: 0.1
+Result: Pass
+Test with ASG set correctly. Applies alarms to selected RDS instance.
+Test with ASG set incorretly. Fails.
+Test with ASG set and ALLASG set. Fails.
+Test with ALLASG set. Applies alarms to all ASG resources.
+
+1.2 Evaluation Period
+Last Tested Date: 2011-11-14
+Last Tested Version: 0.1
+Result: Pass
+Test with Evaluation Period not set.
+Test with Evaluation Period set to 1.
+Test with Evaluation Period set to 100.
+
+1.3 SNS Topic Validator (Not implemented as of version 0.1)
+Last Tested Date: <Date> 
+Last Tested Version: <Version Number>
+Result: <Pass/Fail>
+Test with SNS topic not set.
+Test with SNS topic set correctly.
+Test with SNS topic set incorrectly.
+
+1.4 Preview Mode Validtor
+Last Tested Date: 2011-11-14
+Last Tested Version: 0.1
+Result: Pass
+Test with Previewmode not set. Result: alarms applied.
+Test with Previewmode set incorrectly. Result: exit.
+Test with Previewmode set to "True|true". Result: alarms applied.
+
+1.5 ASG Availability (Not implemented as of version 0.1)
+Last Tested Date: <Date> 
+Last Tested Version: <Version Number>
+Result: <Pass/Fail>
+Test -g with no asg resources available.
+Test -g with asg resources available.
+Test -a with no asg resources available.
+Test -a with asg resources available.
