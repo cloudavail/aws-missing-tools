@@ -2,7 +2,7 @@
 access_key = ""
 secret_key = ""
 #default options are given below - user input can override any one of these
-options = {:fileoutputlocation => "~/ec-cost-calculate-result.txt", :output => "screen",:seperator => ",",:region => "all",:period => "hour",:multiplier => 1,:status => :running }
+options = {:fileoutputlocation => "~/ec-cost-calculate-result.txt", :output => "screen",:seperator => ",",:region => "all",:period => "hour",:multiplier => 1,:status => :running, :awscredentialsfile => "", :awscredentialssource => "env", :user_selected_region => "all" }
 #ec2cc_resources holds resources needed by ec2_cost_calculate, such as the output file handle
 ec2cc_resources = {}
 #list of valid statuses for an instance - will be used to validate user input
@@ -62,34 +62,6 @@ end
 ## Initialization of ec2-cost-calculate
 #sets program name
 program_name = File.basename($PROGRAM_NAME)
-#gets and creates the credentials required for access
-credentialfile = ENV["AWS_CREDENTIAL_FILE"]
-if credentialfile.nil? || File.exists?(credentialfile) == false
-  $stderr.print "The environment variable AWS_CREDENTIAL_FILE must exist and point to a valid credential file in order for ", program_name, " to run. The AWS_CREDENTIAL_FILE must contain also contain the two lines below:\n AWSAccessKeyId=<your access key>\n AWSSecretKey=<your secret key>\nPlease correct this error and run again.\n"
-  exit 64
-end
-File.open(credentialfile,"r").each do |line|
-  #below: sets access_key equal to line read in from "AWS_CREDENTIAL_FILE" that starts with "AWSAccessKeyId=" and removes trailing character
-  if line.start_with?("AWSAccessKeyId=")
-    access_key = line.split("=")[1].chomp!
-  end
-  #below: sets secret_key equal to line read in from "AWS_CREDENTIAL_FILE" that starts with "AWSSecretKeyId=" and removes trailing character
-  if line.start_with?("AWSSecretKey=")
-    secret_key = line.split("=")[1].chomp!
-  end
-end
-
-#gets and creates the price_table
-price_table = Net::HTTP.get('s3.amazonaws.com', '/colinjohnson-cloudavaildev/aws-ec2-cost-map.txt')
-#establishes an initial connection object to AWS
-ec2_interface = AWS::EC2.new( :access_key_id => access_key, :secret_access_key => secret_key)
-
-#creates a container (currently, an array) for all ec2 objects
-ec2_container = {};
-#creates a container (currently, an array) for all regions resources
-region_container = {};
-#regions_aws is a list of all current Amazon regions
-regions_aws_all = ec2_interface.regions.map
 
 #begin Options Parsing
 optparse = OptionParser.new do |opts|
@@ -124,17 +96,7 @@ optparse = OptionParser.new do |opts|
   #options processing for region
   opts.on('-r','--region REGION',"Region for which Instance Costs Should be Provided. Accepts values such as \"us-east-1\" or \"us-west-1.\" Default value is \"all\".") do |region_selected|
     region_selected.downcase!
-    if region_selected == "all"
-      $stderr.print "Region \"all\" has been selected.\n"
-    else
-      if regions_aws_all.detect {|region_evaluated| region_evaluated.name == region_selected }
-        print "The region \"", region_selected, "\" has been selected.\n"
-        options[:region] = region_selected
-      else
-        $stderr.print "You specified the region \"",region_selected,".\" You need to specify a valid region (example: \"us-east-1\") or region \"all\" for all regions.\n"
-        exit 64
-      end
-    end
+    options[:user_selected_region] = region_selected
   end
     #options processing for period
   opts.on('-p','--period PERIOD',"Period for Which Costs Should Be Calculated. Accepts values \"hour\", \"day\", \"week\", \"month\" or \"year\". Default value is \"hour\".") do |period|
@@ -167,8 +129,65 @@ optparse = OptionParser.new do |opts|
     exit 64
     end
   end
+  #options processing for aws credential file input
+  opts.on("-o","--output OUTPUT","Output method. Accepts values \"screen\" or \"file.\" Default value is \"screen\".") do |output|
+    #forces option to lowercase - easier to evaluate variables when always lowercase
+    output.downcase!
+    if (output == "screen" || output == "file")
+      options[:output] = output
+    else
+      $stderr.print "You must specifiy an output method such as \"screen\" or \"file\". You specified \"", output, ".\"\n"
+      exit 64
+    end
+  end
+  #options processing for aws credential file input
+  opts.on("--awscredentialfile CREDENTIAILFILE","path to AWS credential file. This is required if the path to an AWS credential file is not provided by an environment variable.") do |awscredentialfile|
+    options[:awscredentialfile] = awscredentialfile
+    options[:awscredentialssource] = "file"
+  end
 end
 optparse.parse!
+
+#case statement deterimnes the location where AWS credentials should be gotten. Defaults to "env" (environment) if set to "file" will read from a user provided file.
+case options[:awscredentialssource]
+when "env"
+  credentialfile = ENV["AWS_CREDENTIAL_FILE"]
+  awscredentialsmissingtext = "The environment variable AWS_CREDENTIAL_FILE must exist and point to a valid credential file in order for ", "#{program_name}", " to run. The AWS_CREDENTIAL_FILE must contain also contain the two lines below:\n AWSAccessKeyId=<your access key>\n AWSSecretKey=<your secret key>\nPlease correct this error and run again.\n"
+when "file"
+  credentialfile = options[:awscredentialfile]
+  awscredentialsmissingtext = "The AWS Credential File you specified must exist for ", "#{program_name}", " to run. The specified file must contain also contain the two lines below:\n AWSAccessKeyId=<your access key>\n AWSSecretKey=<your secret key>\nPlease correct this error and run again.\n"
+else
+  $stderr.print "A problem was encountered when attempting to set AWS Credentials."
+  exit 64;
+end
+
+if credentialfile.nil? || File.exists?(credentialfile) == false
+  $stderr.print awscredentialsmissingtext
+  exit 64;
+end
+
+File.open(credentialfile,"r").each do |line|
+  #below: sets access_key equal to line read in from "AWS_CREDENTIAL_FILE" that starts with "AWSAccessKeyId=" and removes trailing character
+  if line.start_with?("AWSAccessKeyId=")
+    access_key = line.split("=")[1].chomp!
+  end
+  #below: sets secret_key equal to line read in from "AWS_CREDENTIAL_FILE" that starts with "AWSSecretKeyId=" and removes trailing character
+  if line.start_with?("AWSSecretKey=")
+    secret_key = line.split("=")[1].chomp!
+  end
+end
+
+#gets and creates the price_table
+price_table = Net::HTTP.get('s3.amazonaws.com', '/colinjohnson-cloudavaildev/aws-ec2-cost-map.txt')
+#establishes an initial connection object to AWS
+ec2_interface = AWS::EC2.new( :access_key_id => access_key, :secret_access_key => secret_key)
+
+#creates a container (currently, an array) for all ec2 objects
+ec2_container = {};
+#creates a container (currently, an array) for all regions resources
+region_container = {};
+#regions_aws is a list of all current Amazon regions
+regions_aws_all = ec2_interface.regions.map
 
 #file expansion and validation done outside of optparse
 #below performs expansion - ruby's File class does not support file expansion (for instance, ~/ec-cost-calculate-result.txt)
@@ -182,6 +201,19 @@ if options[:output] == "file"
     options[:fileoutputlocation] = ec2cc_output_file_location
   end
   ec2cc_resources[:ec2_output_file_handle] = File.open(ec2cc_output_file_location,'a')
+end
+
+#region selection done outside of optparse
+if options[:user_selected_region] == "all"
+  $stderr.print "Region \"all\" has been selected.\n"
+else
+  if regions_aws_all.detect {|region_evaluated| region_evaluated.name == options[:user_selected_region] }
+    $stderr.print "The region \"", options[:user_selected_region], "\" has been selected.\n"
+    options[:region] = options[:user_selected_region]
+  else
+    $stderr.print "You specified the region \"",options[:user_selected_region],".\" You need to specify a valid region (example: \"us-east-1\") or region \"all\" for all regions.\n"
+    exit 64
+  end
 end
 
 ##handle region selection - this should be improved to iterate through a list of regions
