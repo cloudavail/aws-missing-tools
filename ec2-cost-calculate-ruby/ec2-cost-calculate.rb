@@ -180,15 +180,14 @@ end
 #gets and creates the price_table
 price_table = Net::HTTP.get('s3.amazonaws.com', '/colinjohnson-cloudavaildev/aws-ec2-cost-map.txt')
 #establishes an initial connection object to AWS
-ec2_interface = AWS::EC2.new( :access_key_id => access_key, :secret_access_key => secret_key)
+aws_interface = AWS::EC2.new( :access_key_id => access_key, :secret_access_key => secret_key)
 
-#creates a container (currently, an array) for all ec2 objects
-ec2_container = {};
-#creates a container (currently, an array) for all regions resources
-region_container = {};
+#creates a collection (currently, an array) of all ec2 objects
+instance_collection = {};
+#creates a collection (currently, an array) of all regions resources
+region_collection = {};
 #regions_aws is a list of all current Amazon regions
-regions_aws_all = ec2_interface.regions.map
-
+regions_array = aws_interface.regions.map
 #file expansion and validation done outside of optparse
 #below performs expansion - ruby's File class does not support file expansion (for instance, ~/ec-cost-calculate-result.txt)
 if options[:output] == "file"
@@ -207,7 +206,7 @@ end
 if options[:user_selected_region] == "all"
   $stderr.print "Region \"all\" has been selected.\n"
 else
-  if regions_aws_all.detect {|region_evaluated| region_evaluated.name == options[:user_selected_region] }
+  if regions_array.detect {|region_evaluated| region_evaluated.name == options[:user_selected_region] }
     $stderr.print "The region \"", options[:user_selected_region], "\" has been selected.\n"
     options[:region] = options[:user_selected_region]
   else
@@ -219,17 +218,17 @@ end
 ##handle region selection - this should be improved to iterate through a list of regions
 if options[:region] == "all"
   #set regions_aws_select to all
-  regions_aws_all.each do |region|
+  regions_array.each do |region|
       region_interface = AWS::EC2.new( :access_key_id => access_key, :secret_access_key => secret_key, :ec2_endpoint => region.endpoint) 
       region_object = Region_Resource.new(region.name,region.endpoint,region_interface)
-      region_container[region.to_s] = region_object
+      region_collection[region.to_s] = region_object
     end
 else
-  regions_aws_all.each do |region|
+  regions_array.each do |region|
     if options[:region] == region.name
       region_interface = AWS::EC2.new( :access_key_id => access_key, :secret_access_key => secret_key, :ec2_endpoint => region.endpoint) 
       region_object = Region_Resource.new(region.name,region.endpoint,region_interface)
-      region_container[region.to_s] = region_object
+      region_collection[region.to_s] = region_object
     end
   end
 end
@@ -238,7 +237,7 @@ end
 AWS.memoize do
   #First Code Block: passes in regional_resource (endpoint) - 1 call for each AWS region
   #Second Code Block: for each region, list all EC2 instances
-  region_container.each do |region_name, region_object|
+  region_collection.each do |region_name, region_object|
     #print "Getting Information from: ",region_object.region_name," using endpoint: ",region_object.region_interface.to_s,"\n"
     #for each region_interface, get all instances and perform actions below:
     region_object.region_interface.instances.each do |instance|
@@ -254,9 +253,9 @@ AWS.memoize do
       ec2_object.asg = instance.tags["aws:autoscaling:groupName"]
       #gets price using Instance.price method
       ec2_object.price = ec2_object.get_price(ec2_object.instance_type,ec2_object.region,ec2_object.platform,price_table,options[:multiplier])
-      #places each ec2_object into the ec2_container if the status of instance matches user requested status
+      #places each ec2_object into the instance_collection if the status of instance matches user requested status
       if options[:status] == instance.status
-        ec2_container[instance.id] = ec2_object
+        instance_collection[instance.id] = ec2_object
       end
     end
   end
@@ -272,6 +271,6 @@ case options[:output]
 end
 
 #Prints Output for each EC2 object
-ec2_container.each do |ec2_instance_id,ec2_instance_object|
+instance_collection.each do |ec2_instance_id,ec2_instance_object|
   ec2_instance_object.output(options,ec2_instance_object,ec2cc_resources)
 end
