@@ -2,7 +2,7 @@
 access_key = ""
 secret_key = ""
 #default options are given below - user input can override any one of these
-options = {:fileoutputlocation => "~/ec-cost-calculate-result.txt", :output => "screen",:seperator => ",",:region => "all",:period => "hour",:multiplier => 1,:status => :running, :awscredentialsfile => "", :awscredentialssource => "env", :user_selected_region => "all" }
+options = {:fileoutputlocation => "~/ec-cost-calculate-result.txt", :output => "screen",:seperator => ",",:region => "all",:period => "hour",:multiplier => 1,:status => :running, :awscredentialsfile => "", :awscredentialssource => "env", :user_selected_region => "all", :mode => "byinstance" }
 #ec2cc_resources holds resources needed by ec2_cost_calculate, such as the output file handle
 ec2cc_resources = {}
 #list of valid statuses for an instance - will be used to validate user input
@@ -55,6 +55,30 @@ class Region_Resource
     @region_name = region_name
     @region_endpoint = region_endpoint
     @region_interface = region_interface
+  end
+end
+
+#CostASG - will contain one cost object per Auto Scaling Group
+class CostASG
+  attr_accessor :name, :region, :instance_type,:total_instance_count, :total_cost
+  def initialize(name,region,instance_type,total_instance_count,total_cost)
+    @name = name
+    @region = region
+    @instance_type = instance_type
+    @total_instance_count = total_instance_count
+    @total_cost = total_cost
+  end
+  def output (options,asg_cost_object,ec2cc_resources)
+    outputstring = "#{asg_cost_object.name}","#{options[:seperator]}","#{asg_cost_object.region}","#{options[:seperator]}","#{asg_cost_object.instance_type}","#{options[:seperator]}","#{asg_cost_object.total_instance_count}","#{options[:seperator]}","#{asg_cost_object.total_cost}","\n"
+    case options[:output]
+    when "file"
+      ec2cc_resources[:ec2_output_file_handle].print outputstring
+    when "screen"
+      print outputstring
+    else 
+      $stderr.print "error with output.\n"
+      exit 1
+    end
   end
 end
 
@@ -140,6 +164,17 @@ optparse = OptionParser.new do |opts|
       exit 64
     end
   end
+  #mode - allowing either "byinstance" - in which the cost of each instance is listed or "byASG" in which the cost of each ASG is listed
+  opts.on("-m","--mode MODE","mode in which ", program_name, " runs. Accepts values \"byinstance\" or \"byASG.\" Default value is \"byinstance\".") do |mode|
+    #forces option to lowercase - easier to evaluate variables when always lowercase
+    mode.downcase!
+    if (mode == "byinstance" || mode == "byasg")
+      options[:mode] = mode
+    else
+      $stderr.print "You must specifiy a mode such as \"byinstance\" or \"byasg\". You specified \"", mode, ".\"\n"
+      exit 64
+    end
+  end
   #options processing for aws credential file input
   opts.on("--awscredentialfile CREDENTIAILFILE","path to AWS credential file. This is required if the path to an AWS credential file is not provided by an environment variable.") do |awscredentialfile|
     options[:awscredentialfile] = awscredentialfile
@@ -186,6 +221,8 @@ aws_interface = AWS::EC2.new( :access_key_id => access_key, :secret_access_key =
 instance_collection = {};
 #creates a collection (currently, an array) of all regions resources
 region_collection = {};
+#creates a collection (currently, an array) of all asg costs objects
+asg_cost_collection = {};
 #regions_aws is a list of all current Amazon regions
 regions_array = aws_interface.regions.map
 #file expansion and validation done outside of optparse
@@ -253,6 +290,16 @@ AWS.memoize do
       ec2_object.asg = instance.tags["aws:autoscaling:groupName"]
       #gets price using Instance.price method
       ec2_object.price = ec2_object.get_price(ec2_object.instance_type,ec2_object.region,ec2_object.platform,price_table,options[:multiplier])
+      
+      #if the currently evaluated instance has an asg that is already in the asg_cost_collection, add the price of the current object to the asg_cost_collection.total_cost attribute, else create a new asg_cost_object and add to the asg_cost_collection
+      if asg_cost_collection.include?(ec2_object.asg)
+        asg_cost_collection[ec2_object.asg].total_instance_count += 1
+        asg_cost_collection[ec2_object.asg].total_cost += ec2_object.price
+      else
+        asg_cost_object = CostASG.new(ec2_object.asg,ec2_object.region,ec2_object.instance_type,1,ec2_object.price)
+        asg_cost_collection[ec2_object.asg] = asg_cost_object
+      end
+      
       #places each ec2_object into the instance_collection if the status of instance matches user requested status
       if options[:status] == instance.status
         instance_collection[instance.id] = ec2_object
@@ -261,7 +308,13 @@ AWS.memoize do
   end
 end
 #Prints Header
-headerstring = "instanceid","#{options[:seperator]}","region","#{options[:seperator]}","platform","#{options[:seperator]}","status","#{options[:seperator]}","cost","#{options[:seperator]}","name","#{options[:seperator]}","autoscalinggroup","\n"
+
+case options[:mode]
+  when "byinstance"
+    headerstring = "instanceid","#{options[:seperator]}","region","#{options[:seperator]}","platform","#{options[:seperator]}","status","#{options[:seperator]}","cost","#{options[:seperator]}","name","#{options[:seperator]}","autoscalinggroup","\n"
+  when "byasg"
+    headerstring = "asgname","#{options[:seperator]}","region","#{options[:seperator]}","instanceplatform","#{options[:seperator]}","instancecount","#{options[:seperator]}","asgcost","\n"
+end
 
 case options[:output]
   when "screen"
@@ -270,7 +323,13 @@ case options[:output]
     ec2cc_resources[:ec2_output_file_handle].print headerstring
 end
 
-#Prints Output for each EC2 object
-instance_collection.each do |ec2_instance_id,ec2_instance_object|
-  ec2_instance_object.output(options,ec2_instance_object,ec2cc_resources)
+case options[:mode]
+  when "byinstance"
+    instance_collection.each do |ec2_instance_id,ec2_instance_object|
+      ec2_instance_object.output(options,ec2_instance_object,ec2cc_resources)
+    end
+  when "byasg"
+    asg_cost_collection.each do |asg_cost_object_asg,asg_cost_object|
+      asg_cost_object.output(options,asg_cost_object,ec2cc_resources)
+    end
 end
