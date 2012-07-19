@@ -5,6 +5,8 @@ secret_key = ""
 options = {:fileoutputlocation => "~/ec-cost-calculate-result.txt", :output => "screen",:seperator => ",",:region => "all",:period => "hour",:multiplier => 1,:status => :running, :awscredentialsfile => "", :awscredentialssource => "env", :user_selected_region => "all", :mode => "byinstance" }
 #ec2cc_resources holds resources needed by ec2_cost_calculate, such as the output file handle
 ec2cc_resources = {}
+#mysql_connection_info holds resources needed if a mysql connection is going to be utilized
+mysql_connection_info = {:mysqlport => 3306 }
 #list of valid statuses for an instance - will be used to validate user input
 instance_valid_statuses = [:pending, :running, :shutting_down, :terminated, :stopping, :stopped]
 
@@ -12,6 +14,7 @@ require 'optparse'
 require 'net/http'
 require 'rubygems'
 require 'aws-sdk'
+require 'mysql'
 
 class Instance
 #attr_accesors create variable setters and getters
@@ -42,6 +45,10 @@ class Instance
       ec2cc_resources[:ec2_output_file_handle].print outputstring
     when "screen"
       print outputstring
+    when "mysql"
+      #print "mysqloutputcalled\n"
+      ec2cc_object_insert = ec2cc_resources[:mysql_connection_object].prepare("insert into costs (instanceid,region,platform,status,cost,name,autoscalinggroup,date) values (?,?,?,?,?,?,?,?)")
+      ec2cc_object_insert.execute("#{ec2_object.id}","#{ec2_object.region}","#{ec2_object.platform}","#{ec2_object.status}","#{ec2_object.price}","#{ec2_object.name}","#{ec2_object.asg}",Time.now)
     else 
       $stderr.print "error with output.\n"
       exit 1
@@ -154,13 +161,13 @@ optparse = OptionParser.new do |opts|
     end
   end
   #options processing for aws credential file input
-  opts.on("-o","--output OUTPUT","Output method. Accepts values \"screen\" or \"file.\" Default value is \"screen\".") do |output|
+  opts.on("-o","--output OUTPUT","Output method. Accepts values \"screen\", \"file\" or \"mysql.\" Default value is \"screen\".") do |output|
     #forces option to lowercase - easier to evaluate variables when always lowercase
     output.downcase!
-    if (output == "screen" || output == "file")
+    if (output == "screen" || output == "file" || output == "mysql" )
       options[:output] = output
     else
-      $stderr.print "You must specifiy an output method such as \"screen\" or \"file\". You specified \"", output, ".\"\n"
+      $stderr.print "You must specifiy an output method such as \"screen\", \"file\" or \"mysql.\" You specified \"", output, ".\"\n"
       exit 64
     end
   end
@@ -179,6 +186,40 @@ optparse = OptionParser.new do |opts|
   opts.on("--awscredentialfile CREDENTIAILFILE","path to AWS credential file. This is required if the path to an AWS credential file is not provided by an environment variable.") do |awscredentialfile|
     options[:awscredentialfile] = awscredentialfile
     options[:awscredentialssource] = "file"
+  end
+  #MySQL Configuration
+  opts.on("--mysqluser MYSQLUSER","username to be used when connecting to MySQL database") do |mysql_user|
+    #forces option to lowercase - easier to evaluate variables when always lowercase
+    if (mysql_user.length == 0 )
+      $stderr.print "The mysql username specified with the --mysqluser flag was blank.\n"
+      exit 64
+    else
+      mysql_connection_info[:mysql_user] = mysql_user
+    end
+  end
+  opts.on("--mysqlpass MYSQLPASS","password to be used when connecting to MySQL database") do |mysql_pass|
+    if (mysql_pass.length == 0 )
+      $stderr.print "The mysql password specified with the --mysqlpassword flag was blank.\n"
+      exit 64
+    else
+      mysql_connection_info[:mysql_pass] = mysql_pass
+    end
+  end
+  opts.on("--mysqlhost MYSQLHOST","host to be used when connecting to MySQL database") do |mysql_host|
+    if (mysql_host.length == 0 )
+      $stderr.print "The mysql hostname specified with the --mysqlhost flag was blank.\n"
+      exit 64
+    else
+      mysql_connection_info[:mysql_host] = mysql_host
+    end
+  end
+  opts.on("--mysqlport MYSQLPORT","port to be used when connecting to MySQL database") do |mysql_port|
+    if (mysql_port.length == 0 )
+      $stderr.print "The mysql port specified with the --mysqlport is required to be a number.\n"
+      exit 64
+    else
+      mysql_connection_info[:mysql_port] = mysql_port.to_i
+    end
   end
 end
 optparse.parse!
@@ -238,6 +279,11 @@ if options[:output] == "file"
   end
   ec2cc_resources[:ec2_output_file_handle] = File.open(ec2cc_output_file_location,'a')
 end
+
+if options[:output] == "mysql"
+  ec2cc_resources[:mysql_connection_object] = Mysql.real_connect(mysql_connection_info[:mysql_host],mysql_connection_info[:mysql_user],mysql_connection_info[:mysql_pass],"ec2cc",mysql_connection_info[:mysql_port])
+end
+
 
 #region selection done outside of optparse
 if options[:user_selected_region] == "all"

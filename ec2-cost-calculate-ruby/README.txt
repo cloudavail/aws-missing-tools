@@ -17,5 +17,5 @@ optional parameters are available by running ec2-cost-calculate.rb --help.
 #
 Author: Colin Johnson / colin@cloudavail.com
 Date: 2012-06-17
-Version 0.1
+Version 0.2
 License Type: GNU GENERAL PUBLIC LICENSE, Version 3
