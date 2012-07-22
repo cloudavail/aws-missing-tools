@@ -46,9 +46,8 @@ class Instance
     when "screen"
       print outputstring
     when "mysql"
-      #print "mysqloutputcalled\n"
-      ec2cc_object_insert = ec2cc_resources[:mysql_connection_object].prepare("insert into costs (instanceid,region,platform,status,cost,name,autoscalinggroup,date) values (?,?,?,?,?,?,?,?)")
-      ec2cc_object_insert.execute("#{ec2_object.id}","#{ec2_object.region}","#{ec2_object.platform}","#{ec2_object.status}","#{ec2_object.price}","#{ec2_object.name}","#{ec2_object.asg}",Time.now)
+      ec2cc_object_insert = ec2cc_resources[:mysql_connection_object].prepare("insert into costs (id,region,platform,instance_type,status,cost,name,autoscalinggroup,date) values (?,?,?,?,?,?,?,?,?)")
+      ec2cc_object_insert.execute("#{ec2_object.id}","#{ec2_object.region}","#{ec2_object.platform}","#{ec2_object.instance_type}","#{ec2_object.status}","#{ec2_object.price}","#{ec2_object.name}","#{ec2_object.asg}",Time.now)
     else 
       $stderr.print "error with output.\n"
       exit 1
@@ -189,42 +188,37 @@ optparse = OptionParser.new do |opts|
   end
   #MySQL Configuration
   opts.on("--mysqluser MYSQLUSER","username to be used when connecting to MySQL database") do |mysql_user|
-    #forces option to lowercase - easier to evaluate variables when always lowercase
-    if (mysql_user.length == 0 )
-      $stderr.print "The mysql username specified with the --mysqluser flag was blank.\n"
-      exit 64
-    else
-      mysql_connection_info[:mysql_user] = mysql_user
-    end
+    mysql_connection_info[:mysql_user] = mysql_user
   end
   opts.on("--mysqlpass MYSQLPASS","password to be used when connecting to MySQL database") do |mysql_pass|
-    if (mysql_pass.length == 0 )
-      $stderr.print "The mysql password specified with the --mysqlpassword flag was blank.\n"
-      exit 64
-    else
-      mysql_connection_info[:mysql_pass] = mysql_pass
-    end
+    mysql_connection_info[:mysql_pass] = mysql_pass
   end
   opts.on("--mysqlhost MYSQLHOST","host to be used when connecting to MySQL database") do |mysql_host|
-    if (mysql_host.length == 0 )
-      $stderr.print "The mysql hostname specified with the --mysqlhost flag was blank.\n"
-      exit 64
-    else
-      mysql_connection_info[:mysql_host] = mysql_host
-    end
+    mysql_connection_info[:mysql_host] = mysql_host
   end
   opts.on("--mysqlport MYSQLPORT","port to be used when connecting to MySQL database") do |mysql_port|
-    if (mysql_port.length == 0 )
-      $stderr.print "The mysql port specified with the --mysqlport is required to be a number.\n"
-      exit 64
-    else
-      mysql_connection_info[:mysql_port] = mysql_port.to_i
-    end
+    mysql_connection_info[:mysql_port] = mysql_port.to_i
   end
 end
 optparse.parse!
 
-#case statement deterimnes the location where AWS credentials should be gotten. Defaults to "env" (environment) if set to "file" will read from a user provided file.
+#ensures that if output is mysql that mysqluser, mysqlpass and mysqlhost are set
+if options[:output] == "mysql"
+  if mysql_connection_info[:mysql_user].nil?
+    $stderr.print "If you are outputing to MySQL using \"--output mysql\" you must specify a mysql username using \"--mysqluser.\"\n"
+    exit 64;
+  end
+  if mysql_connection_info[:mysql_pass].nil?
+    $stderr.print "If you are outputing to MySQL using \"--output mysql\" you must specify a mysql password using \"--mysqlpass.\"\n"
+    exit 64;
+  end
+  if mysql_connection_info[:mysql_host].nil?
+    $stderr.print "If you are outputing to MySQL using \"--output mysql\" you must specify a mysql hostname using \"--mysqlhost.\"\n"
+    exit 64;
+  end
+end
+
+#case statement determines the location where AWS credentials should be gotten. Defaults to "env" (environment) if set to "file" will read from a user provided file.
 case options[:awscredentialssource]
 when "env"
   credentialfile = ENV["AWS_CREDENTIAL_FILE"]
