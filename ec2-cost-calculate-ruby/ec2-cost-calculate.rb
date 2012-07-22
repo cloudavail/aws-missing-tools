@@ -254,7 +254,7 @@ File.open(credentialfile,"r").each do |line|
 end
 
 #gets and creates the price_table
-price_table = Net::HTTP.get('s3.amazonaws.com', '/colinjohnson-cloudavaildev/aws-ec2-cost-map.txt')
+price_table = Net::HTTP.get('s3.amazonaws.com', '/colinjohnson-cloudavailprd/aws-ec2-cost-map.txt')
 #establishes an initial connection object to AWS
 aws_interface = AWS::EC2.new( :access_key_id => access_key, :secret_access_key => secret_key)
 
