@@ -64,7 +64,7 @@ class Region_Resource
   end
 end
 
-#CostASG - will contain one cost object per Auto Scaling Group
+#CostASG is used when mode is "byasg"- one CostASG object exists per Auto Scaling Group
 class CostASG
   attr_accessor :name, :region, :instance_type,:total_instance_count, :total_cost
   def initialize(name,region,instance_type,total_instance_count,total_cost)
@@ -331,15 +331,24 @@ AWS.memoize do
       #gets price using Instance.price method
       ec2_object.price = ec2_object.get_price(ec2_object.instance_type,ec2_object.region,ec2_object.platform,price_table,options[:multiplier])
       
-      #if the currently evaluated instance has an asg that is already in the asg_cost_collection, add the price of the current object to the asg_cost_collection.total_cost attribute, else create a new asg_cost_object and add to the asg_cost_collection
-      if asg_cost_collection.include?(ec2_object.asg)
-        asg_cost_collection[ec2_object.asg].total_instance_count += 1
-        asg_cost_collection[ec2_object.asg].total_cost += ec2_object.price
-      else
-        asg_cost_object = CostASG.new(ec2_object.asg,ec2_object.region,ec2_object.instance_type,1,ec2_object.price)
-        asg_cost_collection[ec2_object.asg] = asg_cost_object
+      #if mode is "byasg" create a new asg cost object and then insert into the asg_cost_collection
+      if options[:mode] == "byasg"
+        #handles case where "ASG" tag is not set, sets to "<nil> string"
+        if ec2_object.asg.nil?
+          ec2_object.asg = "<nil>"
+        end
+        #asg_unique_id is a unique id for each Auto Scaling Group in each region. Converting all values to strings (to_s) ensures no errors when concatinating - one example of a need to convert to string is a "nil" value for ASG - which would cause errors on concatenation.
+        asg_unique_id = ec2_object.asg.to_s + "," + ec2_object.region.to_s + "," + ec2_object.instance_type.to_s
+        #if asg_unique_id exists already, add to instance count and total cost
+        if asg_cost_collection.include?(asg_unique_id)
+          asg_cost_collection[asg_unique_id].total_instance_count += 1
+          asg_cost_collection[asg_unique_id].total_cost += ec2_object.price
+        #else create a new asg_cost_object and place in asg_cost_collection
+        else
+          asg_cost_object = CostASG.new(ec2_object.asg,ec2_object.region,ec2_object.instance_type,1,ec2_object.price)
+          asg_cost_collection[asg_unique_id] = asg_cost_object
+        end
       end
-      
       #places each ec2_object into the instance_collection if the status of instance matches user requested status
       if options[:status] == instance.status
         instance_collection[instance.id] = ec2_object
@@ -347,8 +356,8 @@ AWS.memoize do
     end
   end
 end
-#Prints Header
 
+#Prints Header
 case options[:mode]
   when "byinstance"
     headerstring = "instanceid","#{options[:seperator]}","region","#{options[:seperator]}","platform","#{options[:seperator]}","status","#{options[:seperator]}","cost","#{options[:seperator]}","name","#{options[:seperator]}","autoscalinggroup","\n"
@@ -369,7 +378,7 @@ case options[:mode]
       ec2_instance_object.output(options,ec2_instance_object,ec2cc_resources)
     end
   when "byasg"
-    asg_cost_collection.each do |asg_cost_object_asg,asg_cost_object|
+    asg_cost_collection.each do |asg_unique_id,asg_cost_object|
       asg_cost_object.output(options,asg_cost_object,ec2cc_resources)
     end
 end
