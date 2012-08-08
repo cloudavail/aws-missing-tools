@@ -70,21 +70,27 @@ do
 ec2-describe-instances --region $currentregion --show-empty-fields --filter instance-state-name=running | awk -v currentregion=$currentregion -v period=$period -v multiple=$multiple -v runnumber=$runnumber '
 BEGIN {
 instancecount=0
-#sets cost for regions us-east-1 and us-west-2
-if ( currentregion == "us-east-1" || currentregion == "us-west-2" ) {
- cost["m1.small"]="0.08" ; cost["m1.medium"]="0.16" ; cost["m1.large"]="0.32" ; cost["m1.xlarge"]="0.64" ; cost["t1.micro"]="0.02" ; cost["m2.xlarge"]="0.45" ; cost["m2.2xlarge"]="0.9" ; cost["m2.4xlarge"]="1.8" ; cost["c1.medium"]="0.165" ; cost["c1.xlarge"]="0.66" ; cost["cc1.4xlarge"]="1.3" ; cost["cc2.8xlarge"]="2.4" ; cost["cg1.4xlarge"]="2.1" }
-#sets cost for regions us-west-1
+#sets cost for region us-east-1
+if ( currentregion == "us-east-1" ) {
+ cost["m1.small"]="0.08" ; cost["m1.medium"]="0.16" ; cost["m1.large"]="0.32" ; cost["m1.xlarge"]="0.64" ; cost["t1.micro"]="0.02" ; cost["m2.xlarge"]="0.45" ; cost["m2.2xlarge"]="0.9" ; cost["m2.4xlarge"]="1.8" ; cost["c1.medium"]="0.165" ; cost["c1.xlarge"]="0.66" ; cost["cc1.4xlarge"]="1.3" ; cost["cc2.8xlarge"]="2.4" ; cost["cg1.4xlarge"]="2.1" ; cost["hi1.4xlarge"]="3.1" }
+#sets cost for region us-west-2
+if ( currentregion == "us-west-2" ) {
+ cost["m1.small"]="0.08" ; cost["m1.medium"]="0.16" ; cost["m1.large"]="0.32" ; cost["m1.xlarge"]="0.64" ; cost["t1.micro"]="0.02" ; cost["m2.xlarge"]="0.45" ; cost["m2.2xlarge"]="0.9" ; cost["m2.4xlarge"]="1.8" ; cost["c1.medium"]="0.165" ; cost["c1.xlarge"]="0.66" ; cost["cc1.4xlarge"]="" ; cost["cc2.8xlarge"]="" ; cost["cg1.4xlarge"]="" ; cost["hi1.4xlarge"]="" }
+#sets cost for region us-west-1
 if ( currentregion == "us-west-1" ) {
- cost["m1.small"]="0.09" ; cost["m1.medium"]="0.18" ; cost["m1.large"]="0.36" ; cost["m1.xlarge"]="0.72" ; cost["t1.micro"]="0.025" ; cost["m2.xlarge"]="0.506" ; cost["m2.2xlarge"]="1.012" ; cost["m2.4xlarge"]="2.024" ; cost["c1.medium"]="0.186" ; cost["c1.xlarge"]="0.744" ; cost["cc1.4xlarge"]="" ; cost["cc2.8xlarge"]="" ; cost["cg1.4xlarge"]="" }
-#sets cost for regions eu-east-1a and ap-southeast-1
-if ( currentregion == "eu-west-1" || currentregion == "ap-southeast-1" ) {
- cost["m1.small"]="0.85" ; cost["m1.medium"]="0.17" ; cost["m1.large"]="0.34" ; cost["m1.xlarge"]="0.68" ; cost["t1.micro"]="0.02" ; cost["m2.xlarge"]="0.506" ; cost["m2.2xlarge"]="1.012" ; cost["m2.4xlarge"]="2.024" ; cost["c1.medium"]="0.186" ; cost["c1.xlarge"]="0.744" ; cost["cc1.4xlarge"]="" ; cost["cc2.8xlarge"]="" ; cost["cg1.4xlarge"]="" }
+ cost["m1.small"]="0.09" ; cost["m1.medium"]="0.18" ; cost["m1.large"]="0.36" ; cost["m1.xlarge"]="0.72" ; cost["t1.micro"]="0.025" ; cost["m2.xlarge"]="0.506" ; cost["m2.2xlarge"]="1.012" ; cost["m2.4xlarge"]="2.024" ; cost["c1.medium"]="0.186" ; cost["c1.xlarge"]="0.744" ; cost["cc1.4xlarge"]="" ; cost["cc2.8xlarge"]="" ; cost["cg1.4xlarge"]="" ; cost["hi1.4xlarge"]="" }
+#sets cost for region eu-east-1
+if ( currentregion == "eu-west-1" ) {
+ cost["m1.small"]="0.85" ; cost["m1.medium"]="0.17" ; cost["m1.large"]="0.34" ; cost["m1.xlarge"]="0.68" ; cost["t1.micro"]="0.02" ; cost["m2.xlarge"]="0.506" ; cost["m2.2xlarge"]="1.012" ; cost["m2.4xlarge"]="2.024" ; cost["c1.medium"]="0.186" ; cost["c1.xlarge"]="0.744" ; cost["cc1.4xlarge"]="" ; cost["cc2.8xlarge"]="2.7" ; cost["cg1.4xlarge"]="" ; cost["hi1.4xlarge"]="" }
+#sets cost for region ap-southeast-1
+if ( currentregion == "ap-southeast-1" ) {
+ cost["m1.small"]="0.85" ; cost["m1.medium"]="0.17" ; cost["m1.large"]="0.34" ; cost["m1.xlarge"]="0.68" ; cost["t1.micro"]="0.02" ; cost["m2.xlarge"]="0.506" ; cost["m2.2xlarge"]="1.012" ; cost["m2.4xlarge"]="2.024" ; cost["c1.medium"]="0.186" ; cost["c1.xlarge"]="0.744" ; cost["cc1.4xlarge"]="" ; cost["cc2.8xlarge"]="" ; cost["cg1.4xlarge"]="" ; cost["hi1.4xlarge"]="" }
 #sets cost for region ap-northeast-1
 if ( currentregion == "ap-northeast-1" ) {
- cost["m1.small"]="0.092" ; cost["m1.medium"]="0.184" ; cost["m1.large"]="0.368" ; cost["m1.xlarge"]="0.736" ; cost["t1.micro"]="0.027" ; cost["m2.xlarge"]="0.518" ; cost["m2.2xlarge"]="1.036" ; cost["m2.4xlarge"]="2.072" ; cost["c1.medium"]="0.19" ; cost["c1.xlarge"]="0.76" ; cost["cc1.4xlarge"]="" ; cost["cc2.8xlarge"]="" ; cost["cg1.4xlarge"]="" }
+ cost["m1.small"]="0.092" ; cost["m1.medium"]="0.184" ; cost["m1.large"]="0.368" ; cost["m1.xlarge"]="0.736" ; cost["t1.micro"]="0.027" ; cost["m2.xlarge"]="0.518" ; cost["m2.2xlarge"]="1.036" ; cost["m2.4xlarge"]="2.072" ; cost["c1.medium"]="0.19" ; cost["c1.xlarge"]="0.76" ; cost["cc1.4xlarge"]="" ; cost["cc2.8xlarge"]="" ; cost["cg1.4xlarge"]="" ; cost["hi1.4xlarge"]="" }
 #sets cost for region sa-east-1
 if ( currentregion == "sa-east-1" ) {
- cost["m1.small"]="0.115" ; cost["m1.large"]="0.23" ; cost["m1.large"]="0.46" ; cost["m1.xlarge"]="0.92" ; cost["t1.micro"]="0.027" ; cost["m2.xlarge"]="0.68" ; cost["m2.2xlarge"]="1.36" ; cost["m2.4xlarge"]="2.72" ; cost["c1.medium"]="0.23" ; cost["c1.xlarge"]="0.92" ; cost["cc1.4xlarge"]="" ; cost["cc2.8xlarge"]="" ; cost["cg1.4xlarge"]="" }
+ cost["m1.small"]="0.115" ; cost["m1.large"]="0.23" ; cost["m1.large"]="0.46" ; cost["m1.xlarge"]="0.92" ; cost["t1.micro"]="0.027" ; cost["m2.xlarge"]="0.68" ; cost["m2.2xlarge"]="1.36" ; cost["m2.4xlarge"]="2.72" ; cost["c1.medium"]="0.23" ; cost["c1.xlarge"]="0.92" ; cost["cc1.4xlarge"]="" ; cost["cc2.8xlarge"]="" ; cost["cg1.4xlarge"]="" ; cost["hi1.4xlarge"]=""  }
 
 if ( runnumber == 0 ) {
  printf ("%s %s %s %s %s %s %s %s\n", "InstanceID", "InstanceSize", "InstanceIP", "InstanceStatus", "InstanceName", "AutoScalingGroup", "Region", "InstanceCost" )
