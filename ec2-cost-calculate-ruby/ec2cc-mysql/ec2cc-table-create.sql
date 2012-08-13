@@ -14,7 +14,7 @@ CREATE  TABLE IF NOT EXISTS `ec2cc`.`costs` (
   `platform` VARCHAR(7) NOT NULL ,
   `instance_type` VARCHAR(13) NOT NULL ,
   `status` VARCHAR(7) NOT NULL ,
-  `cost` FLOAT NOT NULL ,
+  `cost` DECIMAL(10,4) NOT NULL ,
   `name` VARCHAR(40) NULL ,
   `autoscalinggroup` VARCHAR(40) NULL ,
   `date` DATETIME NOT NULL )
