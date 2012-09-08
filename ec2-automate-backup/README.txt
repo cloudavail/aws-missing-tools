@@ -1,5 +1,8 @@
 # Introduction:
-ec2-automate-backup was created to provide easy backup/snapshot functionality for EC2 EBS volumes. The typical use would be to run ec2-automate-backup with a list of volumes for which a snapshot is desired. Another common use would be to run ec2-automate-backup with cron (example: "0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -v vol-6d6a0527 > /home/ec2-user/ec2-automate-backup_`date +"%Y%m%d"`.log") or to snapshot all EBS volumes that contain the tag "Backup=true" (example: "0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -s tag -t "Backup=true" > /home/ec2-user/ec2-automate-backup_`date +"%Y%m%d"`.log")
+ec2-automate-backup was created to provide easy backup/snapshot functionality for EC2 EBS volumes. Common uses would include the following:
+* run ec2-automate-backup with a list of volumes for which a snapshot is desired
+* run ec2-automate-backup using cron to produce a daily backup (example: "0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -v "vol-6d6a0527 vol-636a0112" > /home/ec2-user/ec2-automate-backup_`date +"%Y%m%d"`.log")
+* run ec2-automate-backup to snapshot all EBS volumes that contain the tag "Backup=true" (example: "0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -s tag -t "Backup=true" > /home/ec2-user/ec2-automate-backup_`date +"%Y%m%d"`.log")
 # Directions For Use:
 #
 ## Example of Use:
@@ -11,18 +14,18 @@ the above example would provide a single backup of the EBS volumeid vol-6d6a0527
 #
 ec2-automate-backup requires one of the following two parameters be provided:
 -v <volumeid> - the "volumeid" parameter is required to select EBS volumes for snapshot if ec2-automate-backup is run using the "volumeid" selection method - the "volumeid" selection method is the default selection method.
--t <tag> - the "tag" parameter is required if the "method" of selecting EBS volumes for snapshot is by tag (-s tag). The format for tag is key=value (example: Backup=true) and the correct method for running ec2-automate-backup in this manner is ec2-automate-backup -s tag -t Backkup=true.
+-t <tag> - the "tag" parameter is required if the "method" of selecting EBS volumes for snapshot is by tag (-s tag). The format for tag is key=value (example: Backup=true) and the correct method for running ec2-automate-backup in this manner is ec2-automate-backup -s tag -t Backup=true.
 #
 ## Optional Parameters:
 #
--r <region> - the region that contains the EBS volumes that you wish to have a snapshot created for.
--s <selection_method> - the selection method for which EBS volumes will be selected. Currently supported selection methods are "volumeid" and "tag." The selection method "volumeid" identifies EBS volumes for which a snapshot should be taken by volumeid whereas the selection method "tag" identifies EBS volumes for which a snapshot should be taken by a user provided "tag".
+-r <region> - the region that contains the EBS volumes for which you wish to have a snapshot created.
+-s <selection_method> - the selection method by which EBS volumes will be selected. Currently supported selection methods are "volumeid" and "tag." The selection method "volumeid" identifies EBS volumes for which a snapshot should be taken by volume id whereas the selection method "tag" identifies EBS volumes for which a snapshot should be taken by a key=value format tag.
 #
 # Potential Uses and Methods of Use:
 #
-* Backup multiple EBS volumes using as follows: ec2-automate-backup -v "vol-6d6a0527 vol-636a0112"
-* Backup a selected group of EBS volumes on a schedule tag each volume you wish to backup with the tag "backup=true" and run ec2-automate-backup using cron as follows: ec2-automate-backup -s tag -t "backup=true"
-* Backup a selected group of EBS volumes on a schedule tag each volume you wish to backup with the tag "Backup-Daily=true" and/or "Backup-Monthly=true" and run ec2-automate-backup using cron as follows:
+* To backup multiple EBS volumes use ec2-automate-backup as follows: ec2-automate-backup -v "vol-6d6a0527 vol-636a0112"
+* To backup a selected group of EBS volumes on a daily schedule tag each volume you wish to backup with the tag "Backup=true" and run ec2-automate-backup using cron as follows: 0 0 * * 0 ec2-automate-backup -s tag -t "Backup=true"
+* To backup a selected group of EBS volumes on a daily and/or monthly schedule tag each volume you wish to backup with the tag "Backup-Daily=true" and/or "Backup-Monthly=true" and run ec2-automate-backup using cron as follows:
  - 0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -s tag -t "Backup-Daily=true"
  - 0 0 1 * * ec2-user /home/ec2-user/ec2-automate-backup.sh -s tag -t "Backup-Monthly=true"
 #
