@@ -75,5 +75,5 @@ get_EBS_list
 #the loop below is called once for each volume in $ebs_backup_list - the currently selected EBS volume is passed in as "ebs_selected"
 for ebs_selected in $ebs_backup_list
 do
-	echo "ec2-create-snapshot --region $region -d ${ebs_selected}_$date_current $ebs_selected"
+	ec2-create-snapshot --region $region -d ${ebs_selected}_$date_current $ebs_selected
 done
