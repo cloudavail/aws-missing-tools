@@ -1,0 +1,28 @@
+ec2ab_exec=/Temp/ec2-automate-backup.sh
+#create two volumes
+volume_1=`ec2-create-volume --size 2 GB --availability-zone us-east-1a`
+volume_2=`ec2-create-volume --size 2 GB --availability-zone us-east-1a`
+#get volume id of both volumes
+volume_1_id=`echo "$volume_1" | cut -f 2`
+volume_2_id=`echo "$volume_2" | cut -f 2`
+#tag volume_1 with Backup=true
+ec2-create-tags $volume_1_id --tag Backup=true
+#test backing up only volume with tag Backup=true
+$ec2ab_exec -s tag -t Backup=true
+#expected result - snapshot only taken of volume_1
+#
+#test backing up only EBS volume with IDs "x" and "y"
+$ec2ab_exec -v "$volume_1_id $volume_2_id"
+#expected result - snapshot only taken of volume_1 and volume_2
+#
+#test backing up only EBS volume with IDs "x" and "y" and tagging them with "name"
+$ec2ab_exec -v "$volume_1_id $volume_2_id" -n
+#expected result - snapshot only taken of volume_1 and volume_2 each with tag "name" set to ec2ab_$volume_id_$date_current
+#
+#test backing up only EBS volume with IDs "x" and "y" and tagging them with a tag "PurgeAfter=14"
+$ec2ab_exec -v "$volume_1_id $volume_2_id" -k 14
+#expected result - snapshot only taken of volume_1 and volume_2 each with tags "PurgeAfter=$date_current+14" and "PurgeAllow=true"
+#
+#test backing up only EBS volume with IDs "x" and "y" and tagging them with a tag "PurgeAfter=1"
+$ec2ab_exec -v "$volume_1_id $volume_2_id" -k 14 -n
+#expected result - snapshot only taken of volume_1 and volume_2 each with tag "name" set to ec2ab_$volume_id_$date_current

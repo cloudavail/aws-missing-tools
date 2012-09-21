@@ -1,8 +1,10 @@
 # Introduction:
 ec2-automate-backup was created to provide easy backup/snapshot functionality for EC2 EBS volumes. Common uses would include the following:
-* run ec2-automate-backup with a list of volumes for which a snapshot is desired
+* run ec2-automate-backup with a list of volumes for which a snapshot is desired (example: ec2-automate-backup.sh -v "vol-6d6a0527 vol-636a0112")
+* run ec2-automate-backup with a list of volumes for which a snapshot is desired and allow the created snapshots to be deleted after 14 days (example: ec2-automate-backup.sh -v "vol-6d6a0527 vol-636a0112" -k 31)
 * run ec2-automate-backup using cron to produce a daily backup (example: "0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -v "vol-6d6a0527 vol-636a0112" > /home/ec2-user/ec2-automate-backup_`date +"%Y%m%d"`.log")
 * run ec2-automate-backup to snapshot all EBS volumes that contain the tag "Backup=true" (example: "0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -s tag -t "Backup=true" > /home/ec2-user/ec2-automate-backup_`date +"%Y%m%d"`.log")
+
 # Directions For Use:
 #
 ## Example of Use:
@@ -21,6 +23,7 @@ ec2-automate-backup requires one of the following two parameters be provided:
 -r <region> - the region that contains the EBS volumes for which you wish to have a snapshot created.
 -s <selection_method> - the selection method by which EBS volumes will be selected. Currently supported selection methods are "volumeid" and "tag." The selection method "volumeid" identifies EBS volumes for which a snapshot should be taken by volume id whereas the selection method "tag" identifies EBS volumes for which a snapshot should be taken by a key=value format tag.
 -n - tag snapshots "Name" tag as well as description
+-k <purge_after_days> - the period after which a snapshot can be purged. For example, running "ec2-automate-backup.sh -v "vol-6d6a0527 vol-636a0112" -k 31" would allow snapshots to be removed after 31 days
 #
 # Potential Uses and Methods of Use:
 #
@@ -33,6 +36,6 @@ ec2-automate-backup requires one of the following two parameters be provided:
 # Additional Information:
 #
 Author: Colin Johnson / colin@cloudavail.com
-Date: 2012-09-07
+Date: 2012-09-21
 Version 0.1
 License Type: GNU GENERAL PUBLIC LICENSE, Version 3
