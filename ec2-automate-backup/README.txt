@@ -23,7 +23,8 @@ ec2-automate-backup requires one of the following two parameters be provided:
 -r <region> - the region that contains the EBS volumes for which you wish to have a snapshot created.
 -s <selection_method> - the selection method by which EBS volumes will be selected. Currently supported selection methods are "volumeid" and "tag." The selection method "volumeid" identifies EBS volumes for which a snapshot should be taken by volume id whereas the selection method "tag" identifies EBS volumes for which a snapshot should be taken by a key=value format tag.
 -n - tag snapshots "Name" tag as well as description
--k <purge_after_days> - the period after which a snapshot can be purged. For example, running "ec2-automate-backup.sh -v "vol-6d6a0527 vol-636a0112" -k 31" would allow snapshots to be removed after 31 days
+-k <purge_after_days> - the period after which a snapshot can be purged. For example, running "ec2-automate-backup.sh -v "vol-6d6a0527 vol-636a0112" -k 31" would allow snapshots to be removed after 31 days. purge_after_days creates two tags for each volume that was backed up - a PurgeAllow tag which is set to PurgeAllow=true and a PurgeAfter tag which is set to the present day (in UTC) + the value provided by -k.
+-p - the -p flag will purge (meaning delete) all snapshots that were created more than "purge after days" ago. ec2-automate-backup looks at two tags to determine which snapshots should be deleted - the PurgeAllow and PurgeAfter tags. The tags must be set as follows: PurgeAllow=true and PurgeAfter=YYYY-MM-DD where YYYY-MM-DD must be before the present date.
 #
 # Potential Uses and Methods of Use:
 #

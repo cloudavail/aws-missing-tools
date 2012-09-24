@@ -1,13 +1,13 @@
 #!/bin/bash -
 # Author: Colin Johnson / colin@cloudavail.com
-# Date: 2012-09-21
+# Date: 2012-09-24
 # Version 0.1
 # License Type: GNU GENERAL PUBLIC LICENSE, Version 3
 #
 #confirms that executables required for succesful script execution are available
 prerequisite_check()
 {
-	for prerequisite in basename ec2-create-snapshot ec2-create-tags
+	for prerequisite in basename ec2-create-snapshot ec2-create-tags ec2-describe-snapshots ec2-delete-snapshot date
 	do
 		#use of "hash" chosen as it is a shell builtin and will add programs to hash table, possibly speeding execution. Use of type also considered - open to suggestions.
 		hash $prerequisite &> /dev/null
@@ -67,6 +67,35 @@ create_EBS_Snapshot_Tags()
 	fi
 }
 
+purge_EBS_Snapshots()
+{
+	#snapshot_tag_list is a string that contains all snapshots with either the key PurgeAllow or PurgeAfter set
+	snapshot_tag_list=`ec2-describe-tags --show-empty-fields --region $region --filter resource-type=snapshot --filter key=PurgeAllow,PurgeAfter`
+	#snapshot_purge_allowed is a list of all snapshot_ids with PurgeAllow=true
+	snapshot_purge_allowed=`echo "$snapshot_tag_list" | grep .*PurgeAllow'\t'true | cut -f 3`
+	
+	for snapshot_id_evaluated in $snapshot_purge_allowed
+	do
+		#gets the "PurgeAfter" date which is in UTC with YYYY-MM-DD format (or %Y-%m-%d)
+		purge_after_date=`echo "$snapshot_tag_list" | grep .*$snapshot_id_evaluated'\t'PurgeAfter.* | cut -f 5`
+		#if purge_after_date is not set then we have a problem. Need to alter user.
+		if [[ -z $purge_after_date ]]
+			#Alerts user to the fact that a Snapshot was found with PurgeAllow=true but with no PurgeAfter date.
+			then echo "A Snapshot with the Snapshot ID $snapshot_id_evaluated has the tag \"PurgeAllow=true\" but does not have a \"PurgeAfter=YYYY-MM-DD\" date. $app_name is unable to determine if $snapshot_id_evaluated should be purged." 1>&2
+		else
+			#convert both the date_current and purge_after_date into epoch time to allow for comparison
+			date_current_epoch=`date -j -f "%Y-%m-%d" "$date_current" "+%s"`
+			purge_after_date_epoch=`date -j -f "%Y-%m-%d" "$purge_after_date" "+%s"`
+			#perform compparison - if $purge_after_date_epoch is a lower number than $date_current_epoch than the PurgeAfter date is earlier than the current date - and the snapshot can be safely removed
+			if [[ $purge_after_date_epoch < $date_current_epoch ]]
+				then
+				echo "The snapshot \"$snapshot_id_evaluated\" with the Purge After date of $purge_after_date will be deleted."
+				ec2-delete-snapshot --region $region $snapshot_id_evaluated
+			fi
+		fi
+	done
+}
+
 #calls prerequisitecheck function to ensure that all executables required for script execution are available
 prerequisite_check
 
@@ -118,3 +147,9 @@ do
 	fi	
 	create_EBS_Snapshot_Tags
 done
+
+#if purge_snapshots is true, then run purge_EBS_Snapshots function
+if $purge_snapshots
+	then echo "Snapshot Purging is Starting Now."
+	purge_EBS_Snapshots
+fi
