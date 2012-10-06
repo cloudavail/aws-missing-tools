@@ -63,8 +63,29 @@ create_EBS_Snapshot_Tags()
 	fi
 	#if $snapshot_tags is not zero length then set the tag on the snapshot using ec2-create-tags
 	if [[ -n $snapshot_tags ]]
-		then ec2-create-tags $ec2_snapshot_resource_id --region $region $snapshot_tags
+		then echo "Tagging Snapshot $ec2_snapshot_resource_id with the following Tags:"
+		ec2-create-tags $ec2_snapshot_resource_id --region $region $snapshot_tags
 	fi
+}
+
+date_command_get()
+{
+	#finds full path to date binary
+	date_binary_full_path=`which date`
+	#command below is used to determine if date binary is gnu, macosx or other
+	date_binary_file_result=`file -b $date_binary_full_path`
+	case $date_binary_file_result in
+		"Mach-O 64-bit executable x86_64") date_binary="macosx" ;;
+		"ELF 64-bit LSB executable, x86-64, version 1 (SYSV)"*) date_binary="gnu" ;;
+		*) date_binary="unknown" ;;
+	esac
+	#based on the installed date binary the case statement below will determine the method to use to determine "purge_after_days" in the future
+	case $date_binary in
+		gnu) date_command="date -d +${purge_after_days}days -u +%Y-%m-%d" ;;
+		macosx) date_command="date -v+${purge_after_days}d -u +%Y-%m-%d" ;;
+		unknown) date_command="date -d +${purge_after_days}days -u +%Y-%m-%d" ;;
+		*) date_command="date -d +${purge_after_days}days -u +%Y-%m-%d" ;;
+	esac
 }
 
 purge_EBS_Snapshots()
@@ -104,11 +125,13 @@ app_name=`basename $0`
 #sets defaults
 selection_method="volumeid"
 region="us-east-1"
+#date_binary allows a user to set the "date" binary that is installed on their system and, therefore, the options that will be given to the date binary to perform date calculations
+date_binary=""
+
 #sets the "Name" tag set for a snapshot to false - using "Name" requires that ec2-create-tags be called in addition to ec2-create-snapshot
 name_tag_create=false
 #sets the Purge Snapshot feature to false - this feature will eventually allow the removal of snapshots that have a "PurgeAfter" tag that is earlier than current date
 purge_snapshots=false
-
 #handles options processing
 while getopts :s:r:v:t:k:pn opt
 	do
@@ -128,7 +151,12 @@ while getopts :s:r:v:t:k:pn opt
 date_current=`date -u +%Y-%m-%d`
 #sets the PurgeAfter tag to the number of days that a snapshot should be retained
 if [[ -n $purge_after_days ]]
-	then purge_after_date=`date -v+${purge_after_days}d -u +%Y-%m-%d`
+	then
+	#if the date_binary is not set, call the date_command_get function
+	if [[ -z $date_binary ]]
+		then date_command_get
+	fi
+	purge_after_date=`$date_command`
 	echo "Snapshots taken by $app_name will be eligible for purging after the following date: $purge_after_date."
 fi
 
