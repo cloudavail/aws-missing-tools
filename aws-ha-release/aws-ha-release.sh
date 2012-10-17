@@ -150,7 +150,7 @@ do
 	sleep $elb_timeout
 	#terminates a pre-existing instance within the autoscaling group
 	echo "Instance $instance_selected will now be terminated. By terminating this Instance, the actual capacity will be decreased to 1 under desired-capacity."
-	as-terminate-instance-in-auto-scaling-group --instance $instance_selected --no-decrement-desired-capacity --force > /dev/null
+	as-terminate-instance-in-auto-scaling-group --region $region --instance $instance_selected --no-decrement-desired-capacity --force > /dev/null
 done
 
 #return max-size to initial size
