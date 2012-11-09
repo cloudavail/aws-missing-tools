@@ -68,24 +68,46 @@ create_EBS_Snapshot_Tags()
 	fi
 }
 
-date_command_get()
+date_binary_get()
 {
-	#finds full path to date binary
-	date_binary_full_path=`which date`
-	#command below is used to determine if date binary is gnu, macosx or other
-	date_binary_file_result=`file -b $date_binary_full_path`
-	case $date_binary_file_result in
-		"Mach-O 64-bit executable x86_64") date_binary="macosx" ;;
-		"ELF 64-bit LSB executable, x86-64, version 1 (SYSV)"*) date_binary="gnu" ;;
+	#`uname -o (operating system) would be ideal, but OS X / Darwin does not support to -o option`
+	#`uname` on OS X defaults to `uname -s` and `uname` on GNU/Linux defaults to `uname -s`
+	uname_result=`uname`
+	case $uname_result in
+		Darwin) date_binary="osx-posix" ;;
+		Linux) date_binary="linux-gnu" ;;
 		*) date_binary="unknown" ;;
 	esac
-	#based on the installed date binary the case statement below will determine the method to use to determine "purge_after_days" in the future
-	case $date_binary in
-		gnu) date_command="date -d +${purge_after_days}days -u +%Y-%m-%d" ;;
-		macosx) date_command="date -v+${purge_after_days}d -u +%Y-%m-%d" ;;
-		unknown) date_command="date -d +${purge_after_days}days -u +%Y-%m-%d" ;;
-		*) date_command="date -d +${purge_after_days}days -u +%Y-%m-%d" ;;
-	esac
+}
+
+get_purge_after_date()
+{
+#based on the date_binary variable, the case statement below will determine the method to use to determine "purge_after_days" in the future
+case $date_binary in
+	linux-gnu) echo `date -d +${purge_after_days}days -u +%Y-%m-%d` ;;
+	osx-posix) echo `date -v+${purge_after_days}d -u +%Y-%m-%d` ;;
+	*) echo `date -d +${purge_after_days}days -u +%Y-%m-%d` ;;
+esac
+}
+
+get_purge_after_date_epoch()
+{
+#based on the date_binary variable, the case statement below will determine the method to use to determine "purge_after_date_epoch" in the future
+case $date_binary in
+	linux-gnu) echo `date -d $purge_after_date +%s` ;;
+	osx-posix) echo `date -j -f "%Y-%m-%d" $purge_after_date "+%s"` ;;
+	*) echo `date -d $purge_after_date +%s` ;;
+esac
+}
+
+get_date_current_epoch()
+{
+#based on the date_binary variable, the case statement below will determine the method to use to determine "date_current_epoch" in the future
+case $date_binary in
+	linux-gnu) echo `date -d $date_current +%s` ;;
+	osx-posix) echo `date -j -f "%Y-%m-%d" $date_current "+%s"` ;;
+	*) echo `date -d $date_current +%s` ;;
+esac
 }
 
 purge_EBS_Snapshots()
@@ -105,8 +127,8 @@ purge_EBS_Snapshots()
 			then echo "A Snapshot with the Snapshot ID $snapshot_id_evaluated has the tag \"PurgeAllow=true\" but does not have a \"PurgeAfter=YYYY-MM-DD\" date. $app_name is unable to determine if $snapshot_id_evaluated should be purged." 1>&2
 		else
 			#convert both the date_current and purge_after_date into epoch time to allow for comparison
-			date_current_epoch=`date -j -f "%Y-%m-%d" "$date_current" "+%s"`
-			purge_after_date_epoch=`date -j -f "%Y-%m-%d" "$purge_after_date" "+%s"`
+			date_current_epoch=`get_date_current_epoch`
+			purge_after_date_epoch=`get_purge_after_date_epoch`
 			#perform compparison - if $purge_after_date_epoch is a lower number than $date_current_epoch than the PurgeAfter date is earlier than the current date - and the snapshot can be safely removed
 			if [[ $purge_after_date_epoch < $date_current_epoch ]]
 				then
@@ -152,11 +174,11 @@ date_current=`date -u +%Y-%m-%d`
 #sets the PurgeAfter tag to the number of days that a snapshot should be retained
 if [[ -n $purge_after_days ]]
 	then
-	#if the date_binary is not set, call the date_command_get function
+	#if the date_binary is not set, call the date_binary_get function
 	if [[ -z $date_binary ]]
-		then date_command_get
+		then date_binary_get
 	fi
-	purge_after_date=`$date_command`
+	purge_after_date=`get_purge_after_date`
 	echo "Snapshots taken by $app_name will be eligible for purging after the following date: $purge_after_date."
 fi
 
