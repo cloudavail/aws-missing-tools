@@ -93,7 +93,7 @@ purge_EBS_Snapshots()
 	#snapshot_tag_list is a string that contains all snapshots with either the key PurgeAllow or PurgeAfter set
 	snapshot_tag_list=`ec2-describe-tags --show-empty-fields --region $region --filter resource-type=snapshot --filter key=PurgeAllow,PurgeAfter`
 	#snapshot_purge_allowed is a list of all snapshot_ids with PurgeAllow=true
-	snapshot_purge_allowed=`echo "$snapshot_tag_list" | grep .*PurgeAllow'\t'true | cut -f 3`
+	snapshot_purge_allowed=`echo "$snapshot_tag_list" | grep .*PurgeAllow'\s'true | cut -f 3`
 	
 	for snapshot_id_evaluated in $snapshot_purge_allowed
 	do
