@@ -15,7 +15,7 @@ ec2-cost-calculate.rb has no parameter requirements. ec2-cost-calculate.rb defau
 optional parameters are available by running ec2-cost-calculate.rb --help.
 # Additional Information:
 #
-the file "ec2cc - IAM User Required Permissions.json" contains the permissions required to run ec2-cost-calculate.rb in with the "Least Permissions" required. These permissions are "ec2:DescribeInstanceStatus","ec2:DescribeInstances" and "ec2:DescribeRegions."
+the file "ec2cc - IAM User Required Permissions.json" contains the permissions required to run ec2-cost-calculate.rb in with the "Least Permissions" required as of 2012-11-11.
 #
 Author: Colin Johnson / colin@cloudavail.com
 Date: 2012-11-11

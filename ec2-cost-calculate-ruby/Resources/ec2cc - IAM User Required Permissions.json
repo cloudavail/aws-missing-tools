@@ -1,0 +1,15 @@
+{
+	"Statement": [
+		{
+		"Action": [
+			"ec2:DescribeInstanceStatus",
+			"ec2:DescribeInstances",
+			"ec2:DescribeRegions"
+		],
+		"Effect": "Allow",
+		"Resource": [
+			"*"
+		]
+		}
+	]
+}

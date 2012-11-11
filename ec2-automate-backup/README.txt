@@ -36,7 +36,10 @@ ec2-automate-backup requires one of the following two parameters be provided:
 #
 # Additional Information:
 #
+the file "ec2ab - IAM User Required Permissions.json" contains the IAM permissions required to run ec2-cost-calculate.rb in with the least permissions required as of 2012-11-21.
+
+#
 Author: Colin Johnson / colin@cloudavail.com
-Date: 2012-09-21
+Date: 2012-11-21
 Version 0.1
 License Type: GNU GENERAL PUBLIC LICENSE, Version 3

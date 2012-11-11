@@ -1,0 +1,18 @@
+{
+	"Statement": [
+		{
+			"Action": [
+				"ec2:DescribeVolumes",
+				"ec2:CreateSnapshot",
+				"ec2:DeleteSnapshot",
+				"ec2:CreateTags",
+				"ec2:Deletenapshot",
+				"ec2:DescribeTags"
+			],
+			"Effect": "Allow",
+			"Resource": [
+				"*"
+			]
+		}
+	]
+}
