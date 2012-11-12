@@ -34,6 +34,8 @@ ec2-automate-backup requires one of the following two parameters be provided:
 * To backup a selected group of EBS volumes on a daily and/or monthly schedule tag each volume you wish to backup with the tag "Backup-Daily=true" and/or "Backup-Monthly=true" and run ec2-automate-backup using cron as follows:
  - 0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -s tag -t "Backup-Daily=true"
  - 0 0 1 * * ec2-user /home/ec2-user/ec2-automate-backup.sh -s tag -t "Backup-Monthly=true"
+* To perform daily backup using cron and to load environment configuration with a "cron-primer" file:
+- 0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -c /home/ec2-user/cron-primer.sh -s tag -t "Backup=True"
 #
 # Additional Information:
 #
