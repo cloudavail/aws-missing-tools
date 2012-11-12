@@ -139,9 +139,6 @@ purge_EBS_Snapshots()
 	done
 }
 
-#calls prerequisitecheck function to ensure that all executables required for script execution are available
-prerequisite_check
-
 app_name=`basename $0`
 
 #sets defaults
@@ -155,10 +152,11 @@ name_tag_create=false
 #sets the Purge Snapshot feature to false - this feature will eventually allow the removal of snapshots that have a "PurgeAfter" tag that is earlier than current date
 purge_snapshots=false
 #handles options processing
-while getopts :s:r:v:t:k:pn opt
+while getopts :s:c:r:v:t:k:pn opt
 	do
 		case $opt in
 			s) selection_method="$OPTARG";;
+			c) cron_primer="$OPTARG";;
 			r) region="$OPTARG";;
 			v) volumeid="$OPTARG";;
 			t) tag="$OPTARG";;
@@ -168,6 +166,18 @@ while getopts :s:r:v:t:k:pn opt
 			*) echo "Error with Options Input. Cause of failure is most likely that an unsupported parameter was passed or a parameter was passed without a corresponding option." 1>&2 ; exit 64;;
 		esac
 	done
+
+#sources "cron_primer" file for running under cron or other restricted environments - this file should contain the variables and environment configuration required for ec2-automate-backup to run correctly
+if [[ -n $cron_primer ]]
+	then if [[ -f $cron_primer ]] 
+		then source $cron_primer
+	else
+		echo "Cron Primer File \"$cron_primer\" Could Not Be Found." 1>&2 ; exit 70
+	fi
+fi
+
+#calls prerequisitecheck function to ensure that all executables required for script execution are available
+prerequisite_check
 
 #sets date variable
 date_current=`date -u +%Y-%m-%d`
