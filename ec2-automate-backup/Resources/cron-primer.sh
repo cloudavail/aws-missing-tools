@@ -9,3 +9,6 @@ export JAVA_HOME=/usr/lib/jvm/jre
 export PATH=/bin:/opt/aws/bin/
 export AWS_ACCESS_KEY=<your_access_key>
 export AWS_SECRET_KEY=<your_secret_key>
+#the environment variables below (EC2_PRIVATE_KEY and EC2_CERT) are deprecated as of the release of EC2 API Tools 1.6.0.0 - it is recommended that users upgrade to a version of the EC2 API Tools equal to or greater than 1.6.0.0 and use the environment variables AWS_ACCESS_KEY and AWS_SECRET_KEY instead.
+#export EC2_PRIVATE_KEY=/path/to/your/private/key.pem
+#export EC2_CERT=/path/to/your/cert.pem
