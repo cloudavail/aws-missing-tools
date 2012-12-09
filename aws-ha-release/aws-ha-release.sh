@@ -86,6 +86,11 @@ fi
 if [[ `echo -e "$asg_result" | grep -c "^AUTO-SCALING-GROUP"` < 1 ]]
 	then echo "No Auto Scaling Group was found. Because no Auto Scaling Group has been found, $app_name does not know which Auto Scaling Group should have Instances terminated." 1>&2 ; exit 64
 fi
+#confirms that the selected Auto Scaling Group is not currently in state "Suspended Processing" - the "Suspending Processing" state prevents the termination of Auto Scaling Group instances and thus prevents aws-ha-release from running properly
+if [[ `echo -e "$asg_result" | grep -c "SUSPENDED-PROCESS"` > 1 ]]
+	then echo "Scaling Processes for the Auto Scaling Group $asg_group_name are currently suspended. $app_name will now exit as Scaling Processes are required for $app_name to run properly." 1>&2 ; exit 77
+fi
+
 
 #gets Auto Scaling Group max-size
 asg_initial_max_size=`echo $asg_result | grep ^AUTO-SCALING-GROUP | cut -d "$delimiter" -f 10`
