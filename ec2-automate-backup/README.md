@@ -1,7 +1,7 @@
 # Introduction:
 ec2-automate-backup was created to provide easy backup/snapshot functionality for EC2 EBS volumes. Common uses would include the following:
 * run ec2-automate-backup with a list of volumes for which a snapshot is desired (example: `ec2-automate-backup.sh -v "vol-6d6a0527 vol-636a0112"`)
-* run ec2-automate-backup with a list of volumes for which a snapshot is desired and allow the created snapshots to be deleted after 14 days (example: `ec2-automate-backup.sh -v "vol-6d6a0527 vol-636a0112" -k 31`)
+* run ec2-automate-backup with a list of volumes for which a snapshot is desired and allow the created snapshots to be deleted after 31 days (example: `ec2-automate-backup.sh -v "vol-6d6a0527 vol-636a0112" -k 31`)
 * run ec2-automate-backup using cron to produce a daily backup (example: `"0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -v "vol-6d6a0527 vol-636a0112" > /home/ec2-user/ec2-automate-backup_`date +"%Y%m%d"`.log"`)
 * run ec2-automate-backup to snapshot all EBS volumes that contain the tag "Backup=true" (example: `"0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -s tag -t "Backup=true" > /home/ec2-user/ec2-automate-backup_`date +"%Y%m%d"`.log"`)
 
