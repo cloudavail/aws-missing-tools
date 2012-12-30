@@ -121,7 +121,7 @@ purge_EBS_Snapshots()
 	do
 		#gets the "PurgeAfter" date which is in UTC with YYYY-MM-DD format (or %Y-%m-%d)
 		purge_after_date=`echo "$snapshot_tag_list" | grep .*$snapshot_id_evaluated'\s'PurgeAfter.* | cut -f 5`
-		#if purge_after_date is not set then we have a problem. Need to alter user.
+		#if purge_after_date is not set then we have a problem. Need to alert user.
 		if [[ -z $purge_after_date ]]
 			#Alerts user to the fact that a Snapshot was found with PurgeAllow=true but with no PurgeAfter date.
 			then echo "A Snapshot with the Snapshot ID $snapshot_id_evaluated has the tag \"PurgeAllow=true\" but does not have a \"PurgeAfter=YYYY-MM-DD\" date. $app_name is unable to determine if $snapshot_id_evaluated should be purged." 1>&2
