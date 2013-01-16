@@ -61,6 +61,13 @@ create_EBS_Snapshot_Tags()
 		then
 		snapshot_tags="$snapshot_tags --tag PurgeAfter=$purge_after_date --tag PurgeAllow=true"
 	fi
+
+	if $auto_tag
+		then
+		snapshot_tags="$snapshot_tags --tag Volume=${ebs_selected} --tag Created=$date_current"
+	fi
+
+
 	#if $snapshot_tags is not zero length then set the tag on the snapshot using ec2-create-tags
 	if [[ -n $snapshot_tags ]]
 		then echo "Tagging Snapshot $ec2_snapshot_resource_id with the following Tags:"
@@ -149,10 +156,12 @@ date_binary=""
 
 #sets the "Name" tag set for a snapshot to false - using "Name" requires that ec2-create-tags be called in addition to ec2-create-snapshot
 name_tag_create=false
+#sets the auto_tagging feature to false - requires same as Name tag, auto sets tags like Volume with volume_id and Created with timestamp for easy searching
+auto_tag=false
 #sets the Purge Snapshot feature to false - this feature will eventually allow the removal of snapshots that have a "PurgeAfter" tag that is earlier than current date
 purge_snapshots=false
 #handles options processing
-while getopts :s:c:r:v:t:k:pn opt
+while getopts :s:c:r:v:t:k:pna opt
 	do
 		case $opt in
 			s) selection_method="$OPTARG";;
@@ -163,6 +172,7 @@ while getopts :s:c:r:v:t:k:pn opt
 			k) purge_after_days="$OPTARG";;
 			n) name_tag_create=true;;
 			p) purge_snapshots=true;;
+            a) auto_tag=true;;
 			*) echo "Error with Options Input. Cause of failure is most likely that an unsupported parameter was passed or a parameter was passed without a corresponding option." 1>&2 ; exit 64;;
 		esac
 	done
