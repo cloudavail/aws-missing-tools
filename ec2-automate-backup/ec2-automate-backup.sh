@@ -1,6 +1,6 @@
 #!/bin/bash -
 # Author: Colin Johnson / colin@cloudavail.com
-# Date: 2012-09-24
+# Date: 2013-01-27
 # Version 0.1
 # License Type: GNU GENERAL PUBLIC LICENSE, Version 3
 #
@@ -62,11 +62,11 @@ create_EBS_Snapshot_Tags()
 		snapshot_tags="$snapshot_tags --tag PurgeAfter=$purge_after_date --tag PurgeAllow=true"
 	fi
 
+	#if $auto_tag is true, then append Volume=$ebs_selected and Created=$date_current to the variable $snapshot_tags
 	if $auto_tag
 		then
 		snapshot_tags="$snapshot_tags --tag Volume=${ebs_selected} --tag Created=$date_current"
 	fi
-
 
 	#if $snapshot_tags is not zero length then set the tag on the snapshot using ec2-create-tags
 	if [[ -n $snapshot_tags ]]
@@ -156,7 +156,7 @@ date_binary=""
 
 #sets the "Name" tag set for a snapshot to false - using "Name" requires that ec2-create-tags be called in addition to ec2-create-snapshot
 name_tag_create=false
-#sets the auto_tagging feature to false - requires same as Name tag, auto sets tags like Volume with volume_id and Created with timestamp for easy searching
+#sets the auto_tagging feature to false - auto_tag creates tags on snapshots - by default each snapshot is tagged with volume_id and current_data timestamp
 auto_tag=false
 #sets the Purge Snapshot feature to false - this feature will eventually allow the removal of snapshots that have a "PurgeAfter" tag that is earlier than current date
 purge_snapshots=false
