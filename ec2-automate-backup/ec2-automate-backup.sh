@@ -150,7 +150,12 @@ app_name=`basename $0`
 
 #sets defaults
 selection_method="volumeid"
-region="us-east-1"
+if [ -z $EC2_REGION ];
+  then region="us-east-1"
+else
+  region="$EC2_REGION"
+fi
+
 #date_binary allows a user to set the "date" binary that is installed on their system and, therefore, the options that will be given to the date binary to perform date calculations
 date_binary=""
 
