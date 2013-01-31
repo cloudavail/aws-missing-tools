@@ -177,7 +177,7 @@ while getopts :s:c:r:v:t:k:pna opt
 			k) purge_after_days="$OPTARG";;
 			n) name_tag_create=true;;
 			p) purge_snapshots=true;;
-            a) auto_tag=true;;
+			a) auto_tag=true;;
 			*) echo "Error with Options Input. Cause of failure is most likely that an unsupported parameter was passed or a parameter was passed without a corresponding option." 1>&2 ; exit 64;;
 		esac
 	done
