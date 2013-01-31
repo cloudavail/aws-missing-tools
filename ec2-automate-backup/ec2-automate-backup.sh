@@ -150,11 +150,6 @@ app_name=`basename $0`
 
 #sets defaults
 selection_method="volumeid"
-if [ -z $EC2_REGION ];
-  then region="us-east-1"
-else
-  region="$EC2_REGION"
-fi
 
 #date_binary allows a user to set the "date" binary that is installed on their system and, therefore, the options that will be given to the date binary to perform date calculations
 date_binary=""
@@ -187,6 +182,14 @@ if [[ -n $cron_primer ]]
 		then source $cron_primer
 	else
 		echo "Cron Primer File \"$cron_primer\" Could Not Be Found." 1>&2 ; exit 70
+	fi
+fi
+
+if [ -z $region ]; then
+	if [ -z $EC2_REGION ]; then
+		region="us-east-1"
+	else
+		region="$EC2_REGION"
 	fi
 fi
 
