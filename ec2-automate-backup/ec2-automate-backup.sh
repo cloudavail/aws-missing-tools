@@ -150,7 +150,7 @@ app_name=`basename $0`
 
 #sets defaults
 selection_method="volumeid"
-region="us-east-1"
+
 #date_binary allows a user to set the "date" binary that is installed on their system and, therefore, the options that will be given to the date binary to perform date calculations
 date_binary=""
 
@@ -161,21 +161,20 @@ auto_tag=false
 #sets the Purge Snapshot feature to false - this feature will eventually allow the removal of snapshots that have a "PurgeAfter" tag that is earlier than current date
 purge_snapshots=false
 #handles options processing
-while getopts :s:c:r:v:t:k:pna opt
-	do
-		case $opt in
-			s) selection_method="$OPTARG";;
-			c) cron_primer="$OPTARG";;
-			r) region="$OPTARG";;
-			v) volumeid="$OPTARG";;
-			t) tag="$OPTARG";;
-			k) purge_after_days="$OPTARG";;
-			n) name_tag_create=true;;
-			p) purge_snapshots=true;;
-            a) auto_tag=true;;
-			*) echo "Error with Options Input. Cause of failure is most likely that an unsupported parameter was passed or a parameter was passed without a corresponding option." 1>&2 ; exit 64;;
-		esac
-	done
+while getopts :s:c:r:v:t:k:pna opt; do
+	case $opt in
+		s) selection_method="$OPTARG";;
+		c) cron_primer="$OPTARG";;
+		r) region="$OPTARG";;
+		v) volumeid="$OPTARG";;
+		t) tag="$OPTARG";;
+		k) purge_after_days="$OPTARG";;
+		n) name_tag_create=true;;
+		p) purge_snapshots=true;;
+		a) auto_tag=true;;
+		*) echo "Error with Options Input. Cause of failure is most likely that an unsupported parameter was passed or a parameter was passed without a corresponding option." 1>&2 ; exit 64;;
+	esac
+done
 
 #sources "cron_primer" file for running under cron or other restricted environments - this file should contain the variables and environment configuration required for ec2-automate-backup to run correctly
 if [[ -n $cron_primer ]]
@@ -183,6 +182,14 @@ if [[ -n $cron_primer ]]
 		then source $cron_primer
 	else
 		echo "Cron Primer File \"$cron_primer\" Could Not Be Found." 1>&2 ; exit 70
+	fi
+fi
+
+if [ -z $region ]; then
+	if [ -z $EC2_REGION ]; then
+		region="us-east-1"
+	else
+		region="$EC2_REGION"
 	fi
 fi
 
