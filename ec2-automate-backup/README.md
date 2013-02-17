@@ -37,12 +37,12 @@ ec2-automate-backup requires one of the following two parameters be provided:
 * To perform daily backup using cron and to load environment configuration with a "cron-primer" file:
  - `0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -c /home/ec2-user/cron-primer.sh -s tag -t "Backup=True"`
 
-`-a` - the -a flag will tag snapshots with additional data so that snapshots can be more easily located. Currently the two auto tags created are Volume="ebs_volume" and Created="date"
+`-u` - the -u flag will tag snapshots with additional data so that snapshots can be more easily located. Currently the two user tags created are Volume="ebs_volume" and Created="date." These can be easily modified in code.
 
 # Additional Information:
 the file "ec2ab - IAM User Required Permissions.json" contains the IAM permissions required to run ec2-automate-backup.sh in with the least permissions required as of 2012-11-21.
 
 - Author: Colin Johnson / colin@cloudavail.com
-- Date: 2013-01-27
-- Version 0.1
+- Date: 2013-02-17
+- Version 0.9
 - License Type: GNU GENERAL PUBLIC LICENSE, Version 3

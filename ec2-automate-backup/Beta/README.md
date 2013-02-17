@@ -51,6 +51,6 @@ ec2-automate-backup requires one of the following two parameters be provided:
 the file "ec2ab - IAM User Required Permissions.json" contains the IAM permissions required to run ec2-automate-backup.sh in with the least permissions required as of 2012-11-21.
 
 - Author: Colin Johnson / colin@cloudavail.com
-- Date: 2013-02-13
-- Version 0.9
+- Date: 2013-02-17
+- Version 0.9 Beta
 - License Type: GNU GENERAL PUBLIC LICENSE, Version 3

@@ -1,7 +1,7 @@
 #!/bin/bash -
 # Author: Colin Johnson / colin@cloudavail.com
-# Date: 2013-01-27
-# Version 0.1
+# Date: 2013-02-13
+# Version 0.9
 # License Type: GNU GENERAL PUBLIC LICENSE, Version 3
 #
 #confirms that executables required for succesful script execution are available
@@ -62,10 +62,10 @@ create_EBS_Snapshot_Tags()
 		snapshot_tags="$snapshot_tags --tag PurgeAfter=$purge_after_date --tag PurgeAllow=true"
 	fi
 
-	#if $auto_tag is true, then append Volume=$ebs_selected and Created=$date_current to the variable $snapshot_tags
-	if $auto_tag
+	#if $user_tags is true, then append Volume=$ebs_selected and Created=$current_date to the variable $snapshot_tags
+	if $user_tags
 		then
-		snapshot_tags="$snapshot_tags --tag Volume=${ebs_selected} --tag Created=$date_current"
+		snapshot_tags="$snapshot_tags --tag Volume=${ebs_selected} --tag Created=$current_date"
 	fi
 
 	#if $snapshot_tags is not zero length then set the tag on the snapshot using ec2-create-tags
@@ -156,25 +156,26 @@ date_binary=""
 
 #sets the "Name" tag set for a snapshot to false - using "Name" requires that ec2-create-tags be called in addition to ec2-create-snapshot
 name_tag_create=false
-#sets the auto_tagging feature to false - auto_tag creates tags on snapshots - by default each snapshot is tagged with volume_id and current_data timestamp
-auto_tag=false
+#sets the user_tags feature to false - user_tag creates tags on snapshots - by default each snapshot is tagged with volume_id and current_data timestamp
+user_tags=false
 #sets the Purge Snapshot feature to false - this feature will eventually allow the removal of snapshots that have a "PurgeAfter" tag that is earlier than current date
 purge_snapshots=false
 #handles options processing
-while getopts :s:c:r:v:t:k:pna opt; do
-	case $opt in
-		s) selection_method="$OPTARG";;
-		c) cron_primer="$OPTARG";;
-		r) region="$OPTARG";;
-		v) volumeid="$OPTARG";;
-		t) tag="$OPTARG";;
-		k) purge_after_days="$OPTARG";;
-		n) name_tag_create=true;;
-		p) purge_snapshots=true;;
-		a) auto_tag=true;;
-		*) echo "Error with Options Input. Cause of failure is most likely that an unsupported parameter was passed or a parameter was passed without a corresponding option." 1>&2 ; exit 64;;
-	esac
-done
+while getopts :s:c:r:v:t:k:pnu opt
+	do
+		case $opt in
+			s) selection_method="$OPTARG";;
+			c) cron_primer="$OPTARG";;
+			r) region="$OPTARG";;
+			v) volumeid="$OPTARG";;
+			t) tag="$OPTARG";;
+			k) purge_after_days="$OPTARG";;
+			n) name_tag_create=true;;
+			p) purge_snapshots=true;;
+			u) user_tags=true;;
+			*) echo "Error with Options Input. Cause of failure is most likely that an unsupported parameter was passed or a parameter was passed without a corresponding option." 1>&2 ; exit 64;;
+		esac
+	done
 
 #sources "cron_primer" file for running under cron or other restricted environments - this file should contain the variables and environment configuration required for ec2-automate-backup to run correctly
 if [[ -n $cron_primer ]]
@@ -185,11 +186,14 @@ if [[ -n $cron_primer ]]
 	fi
 fi
 
-if [ -z $region ]; then
-	if [ -z $EC2_REGION ]; then
-		region="us-east-1"
+#if region is not set then:
+if [[ -z $region ]]
+	#if the environment variable $EC2_REGION is not set set to us-east-1
+	then if [[ -z $EC2_REGION ]]
+		#if both 
+		then region="us-east-1"
 	else
-		region="$EC2_REGION"
+		region=$EC2_REGION
 	fi
 fi
 

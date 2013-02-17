@@ -143,7 +143,7 @@ date_binary=""
 
 #sets the "Name" tag set for a snapshot to false - using "Name" requires that ec2-create-tags be called in addition to ec2-create-snapshot
 name_tag_create=false
-#sets the auto_tagging feature to false - auto_tag creates tags on snapshots - by default each snapshot is tagged with volume_id and current_data timestamp
+#sets the user_tags feature to false - user_tag creates tags on snapshots - by default each snapshot is tagged with volume_id and current_data timestamp
 user_tags=false
 #sets the Purge Snapshot feature to false - this feature will eventually allow the removal of snapshots that have a "PurgeAfterFE" tag that is earlier than current date
 purge_snapshots=false
