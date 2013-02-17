@@ -19,6 +19,10 @@ $ec2ab_exec -v "$volume_1_id $volume_2_id"
 $ec2ab_exec -v "$volume_1_id $volume_2_id" -n
 #expected result - snapshot only taken of volume_1 and volume_2 each with tag "name" set to ec2ab_$volume_id_$date_current
 #
+#test backing up only EBS volume with IDs "x" and "y" and tagging them with "user tags"
+$ec2ab_exec -v "$volume_1_id $volume_2_id" -u
+#expected result - snapshot only taken of volume_1 and volume_2 each with tag "user tags" set to Volume=$ebs_selected and Created=$current_date
+#
 #test backing up only EBS volume with IDs "x" and "y" and tagging them with a tag "PurgeAfter=14"
 $ec2ab_exec -v "$volume_1_id $volume_2_id" -k 14
 #expected result - snapshot only taken of volume_1 and volume_2 each with tags "PurgeAfter=$date_current+14" and "PurgeAllow=true"

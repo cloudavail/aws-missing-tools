@@ -65,7 +65,7 @@ create_EBS_Snapshot_Tags()
 	#if $user_tags is true, then append Volume=$ebs_selected and Created=$current_date to the variable $snapshot_tags
 	if $user_tags
 		then
-		snapshot_tags="$snapshot_tags --tag Volume=${ebs_selected} --tag Created=$current_date"
+		snapshot_tags="$snapshot_tags --tag Volume=${ebs_selected} --tag Created=$date_current"
 	fi
 
 	#if $snapshot_tags is not zero length then set the tag on the snapshot using ec2-create-tags
