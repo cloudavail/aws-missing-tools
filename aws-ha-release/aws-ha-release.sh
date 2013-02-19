@@ -93,7 +93,7 @@ fi
 
 
 #gets Auto Scaling Group max-size
-asg_initial_max_size=`echo $asg_result | grep ^AUTO-SCALING-GROUP | cut -d "$delimiter" -f 10`
+asg_initial_max_size=`echo $asg_result | grep ^AUTO-SCALING-GROUP | cut -d "$delimiter" -f 9`
 asg_temporary_max_size=$(($asg_initial_max_size+1))
 #gets Auto Scaling Group desired-capacity
 asg_initial_desired_capacity=`echo "$asg_result" | grep ^AUTO-SCALING-GROUP | cut -d "$delimiter" -f 10`
