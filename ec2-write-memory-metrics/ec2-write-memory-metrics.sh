@@ -1,7 +1,7 @@
 #!/bin/bash -
 #get instance id - used for putting metric
 INSTANCE_ID=`curl -s http://169.254.169.254/latest/meta-data/instance-id`
-INSTANCE_AZ=`curl -s curl http://169.254.169.254/latest/meta-data/placement/availability-zone/`
+INSTANCE_AZ=`curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone/`
 INSTANCE_REGION=${INSTANCE_AZ%?}
 
 #could be done using "free" or "vmstat" - use of less and grep is believed to provide widest compatibility - CJ 2011-11-24
