@@ -156,9 +156,9 @@ purge_EBS_Snapshots()
 region_copy_EBS_Snapshots()
 {
 	#snapshots_to_region_copy is a list of all snapshot_ids with RegionCopy=.*:scheduled.*
-	# --output-delimiter and $'n' substitution used so $IFS doesn't have to be
+	#   tr and $'n' substitution used so $IFS doesn't have to be
 	#   manipulated with for loops and the cut command
-	snapshot_tag_list=$(ec2-describe-tags --show-empty-fields --region $region --filter resource-type=snapshot --filter key=RegionCopy | grep ':scheduled' | cut -f3,5- --output-delimiter='~')
+	snapshot_tag_list=$(ec2-describe-tags --show-empty-fields --region $region --filter resource-type=snapshot --filter key=RegionCopy | grep ':scheduled' | cut -f3,5- | tr '[\t ]' '~')
 
 	for snapshot_data in $(echo ${snapshot_tag_list//$'\n'/ } | cut -f1-)
 	do
