@@ -7,7 +7,14 @@
 #confirms that executables required for succesful script execution are available
 prerequisite_check()
 {
-	for prerequisite in basename ec2-create-snapshot ec2-create-tags ec2-describe-snapshots ec2-delete-snapshot date
+    check_values=$1
+
+    if [[ -z $check_values ]]
+    then
+        check_values='ec2-create-snapshot ec2-create-tags ec2-describe-snapshots ec2-delete-snapshot date'
+    fi
+
+	for prerequisite in basename $check_values
 	do
 		#use of "hash" chosen as it is a shell builtin and will add programs to hash table, possibly speeding execution. Use of type also considered - open to suggestions.
 		hash $prerequisite &> /dev/null
@@ -292,6 +299,7 @@ fi
 #if region_copy_destinations is true, then run region_copy_EBS_Snapshots function
 if [[ -n $region_copy_destinations ]]
 	then echo "Snapshot Copying to regions $region_copy_destinations is Starting Now."
+	prerequisite_check ec2-copy-snapshot
 	region_copy_EBS_Snapshots
 fi
 
