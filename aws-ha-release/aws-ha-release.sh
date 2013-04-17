@@ -86,11 +86,14 @@ fi
 if [[ `echo -e "$asg_result" | grep -c "^AUTO-SCALING-GROUP"` < 1 ]]
 	then echo "No Auto Scaling Group was found. Because no Auto Scaling Group has been found, $app_name does not know which Auto Scaling Group should have Instances terminated." 1>&2 ; exit 64
 fi
-#confirms that the selected Auto Scaling Group is not currently in state "Suspended Processing" - the "Suspending Processing" state prevents the termination of Auto Scaling Group instances and thus prevents aws-ha-release from running properly
-if [[ `echo -e "$asg_result" | grep -c "SUSPENDED-PROCESS"` > 1 ]]
-	then echo "Scaling Processes for the Auto Scaling Group $asg_group_name are currently suspended. $app_name will now exit as Scaling Processes are required for $app_name to run properly." 1>&2 ; exit 77
-fi
-
+#confirms that certain Auto Scaling processes are not suspended. For certain processes, the "Suspending Processing" state prevents the termination of Auto Scaling Group instances and thus prevents aws-ha-release from running properly.
+necessary_processes=(RemoveFromLoadBalancerLowPriority Terminate Launch ReplaceUnhealthy HealthCheck)
+for process in "${necessary_processes[@]}"
+do
+	if [[ `echo -e "$asg_result" | grep -c "SUSPENDED-PROCESS$delimiter$process"` > 0 ]]
+		then echo "Scaling Process $process for the Auto Scaling Group $asg_group_name is currently suspended. $app_name will now exit as Scaling Processes ${necessary_processes[@]} are required for $app_name to run properly." 1>&2 ; exit 77
+	fi
+done
 
 #gets Auto Scaling Group max-size
 asg_initial_max_size=`echo $asg_result | grep ^AUTO-SCALING-GROUP | cut -d "$delimiter" -f 9`
@@ -107,6 +110,8 @@ if [[ $asg_initial_max_size -eq 0 ]]
 fi
 #echo a list of Instances that are slated for termination
 echo -e "The list of Instances in Auto Scaling Group $asg_group_name that will be terminated is below:\n$asg_instance_list"
+
+as-suspend-processes $asg_group_name --processes ReplaceUnhealthy,AlarmNotification,ScheduledActions,AZRebalance
 
 #if the desired-capacity of an Auto Scaling Group group is greater than or equal to the max-size of an Auto Scaling Group, the max-size must be increased by 1 to cycle instances while maintaining desired-capacity. This is particularly true of groups of 1 instance (where we'd be removing all instances if we cycled).
 if [[ $asg_initial_desired_capacity -ge $asg_initial_max_size ]]
@@ -162,3 +167,5 @@ done
 return_as_initial_maxsize
 #return temporary desired-capacity to initial desired-capacity
 return_as_initial_desiredcapacity
+
+as-resume-processes $asg_group_name
