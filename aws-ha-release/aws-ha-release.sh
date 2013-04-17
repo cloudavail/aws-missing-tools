@@ -87,7 +87,7 @@ if [[ `echo -e "$asg_result" | grep -c "^AUTO-SCALING-GROUP"` < 1 ]]
 	then echo "No Auto Scaling Group was found. Because no Auto Scaling Group has been found, $app_name does not know which Auto Scaling Group should have Instances terminated." 1>&2 ; exit 64
 fi
 #confirms that certain Auto Scaling processes are not suspended. For certain processes, the "Suspending Processing" state prevents the termination of Auto Scaling Group instances and thus prevents aws-ha-release from running properly.
-necessary_processes=(RemoveFromLoadBalancerLowPriority Terminate Launch ReplaceUnhealthy HealthCheck)
+necessary_processes=(RemoveFromLoadBalancerLowPriority Terminate Launch HealthCheck AddToLoadBalancer)
 for process in "${necessary_processes[@]}"
 do
 	if [[ `echo -e "$asg_result" | grep -c "SUSPENDED-PROCESS$delimiter$process"` > 0 ]]
