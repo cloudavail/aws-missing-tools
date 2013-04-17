@@ -33,16 +33,6 @@ return_as_initial_desiredcapacity()
 	as-update-auto-scaling-group $asg_group_name --region $region --desired-capacity=$asg_initial_desired_capacity
 }
 
-return_to_defaults()
-{
-	#return max-size to initial size
-	return_as_initial_maxsize
-	#return temporary desired-capacity to initial desired-capacity
-	return_as_initial_desiredcapacity
-
-	as-resume-processes $asg_group_name
-}
-
 #set application defaults
 app_name=`basename $0`
 elb_timeout=60
@@ -124,7 +114,8 @@ fi
 #echo a list of Instances that are slated for termination
 echo -e "The list of Instances in Auto Scaling Group $asg_group_name that will be terminated is below:\n$asg_instance_list"
 
-as-suspend-processes $asg_group_name --processes ReplaceUnhealthy,AlarmNotification,ScheduledActions,AZRebalance
+as_processes_to_suspend="ReplaceUnhealthy,AlarmNotification,ScheduledActions,AZRebalance"
+as-suspend-processes $asg_group_name --processes $as_processes_to_suspend
 
 #if the desired-capacity of an Auto Scaling Group group is greater than or equal to the max-size of an Auto Scaling Group, the max-size must be increased by 1 to cycle instances while maintaining desired-capacity. This is particularly true of groups of 1 instance (where we'd be removing all instances if we cycled).
 if [[ $asg_initial_desired_capacity -ge $asg_initial_max_size ]]
@@ -149,8 +140,14 @@ do
 	do
 		if [[ $inservice_time_taken -gt $inservice_time_allowed ]]
 			then echo "During the last $inservice_time_allowed seconds the InService capacity of the $asg_group_name Auto Scaling Group did not meet the Auto Scaling Group's desired capacity of $asg_temporary_desired_capacity." 1>&2
+			echo "Because we can't be sure that instances created by this script are healthy, settings that were changed are being left as is. Settings that were changed:"
 
-			return_to_defaults
+			if [[ $max_size_change -eq 1 ]]
+				then echo "max size was increased by $max_size_change"
+			fi
+
+			echo "desired capacity was increased by 1"
+			echo "AutoScaling processes \"$as_processes_to_suspend\" were suspended."
 
 			exit 79
 		fi
@@ -190,4 +187,10 @@ do
 	as-terminate-instance-in-auto-scaling-group --region $region --instance $instance_selected --no-decrement-desired-capacity --force > /dev/null
 done
 
-return_to_defaults
+#return max-size to initial size
+return_as_initial_maxsize
+
+#return temporary desired-capacity to initial desired-capacity
+return_as_initial_desiredcapacity
+
+as-resume-processes $asg_group_name
