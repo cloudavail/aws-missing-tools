@@ -107,7 +107,6 @@ asg_instance_list=`echo "$asg_result" | grep ^INSTANCE | cut -d "$delimiter" -f 
 #builds an array of load balancers
 IFS=',' read -a asg_elbs <<< `echo "$asg_result" | grep ^AUTO-SCALING-GROUP | cut -d "$delimiter" -f 6`
 
-
 #if the max-size of the Auto Scaling Group is zero there is no reason to run
 if [[ $asg_initial_max_size -eq 0 ]]
 	then echo "$asg_group_name has a max-size of 0. As the Auto Scaling Group \"$asg_group_name\" has no active Instances there is no reason to run." ; exit 79
@@ -133,10 +132,10 @@ as-update-auto-scaling-group $asg_group_name --region $region --desired-capacity
 #and begin recycling instances
 for instance_selected in $asg_instance_list
 do
-	all_instances_inservice=false
+	all_instances_inservice=0
 
 	#the while loop below sleeps for the auto scaling group to have an InService capacity that is equal to the desired-capacity + 1
-	while [[ !$all_instances_inservice ]]
+	while [[ $all_instances_inservice -eq 0 ]]
 	do
 		if [[ $inservice_time_taken -gt $inservice_time_allowed ]]
 			then echo "During the last $inservice_time_allowed seconds the InService capacity of the $asg_group_name Auto Scaling Group did not meet the Auto Scaling Group's desired capacity of $asg_temporary_desired_capacity." 1>&2
@@ -155,7 +154,7 @@ do
 			inservice_instance_list=`elb-describe-instance-health $elb --region $region --show-long | grep InService`
 			inservice_instance_count=`echo "$inservice_instance_list" | wc -l`
 
-			[[ $inservice_instance_count -lt $asg_temporary_desired_capacity ]] && all_instances_inservice=false || all_instances_inservice=true
+			[[ $inservice_instance_count -lt $asg_temporary_desired_capacity ]] && all_instances_inservice=0 || all_instances_inservice=1
 		done
 
 		#sleeps a particular amount of time 
