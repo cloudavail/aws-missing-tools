@@ -138,6 +138,9 @@ do
 			return_as_initial_maxsize
 			#return temporary desired-capacity to initial desired-capacity
 			return_as_initial_desiredcapacity
+
+			as-resume-processes $asg_group_name
+
 			exit 79
 		fi
 		inservice_instance_list=`elb-describe-instance-health $asg_elb --region $region --show-long | grep InService`
