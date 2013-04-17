@@ -33,6 +33,16 @@ return_as_initial_desiredcapacity()
 	as-update-auto-scaling-group $asg_group_name --region $region --desired-capacity=$asg_initial_desired_capacity
 }
 
+return_to_defaults()
+{
+	#return max-size to initial size
+	return_as_initial_maxsize
+	#return temporary desired-capacity to initial desired-capacity
+	return_as_initial_desiredcapacity
+
+	as-resume-processes $asg_group_name
+}
+
 #set application defaults
 app_name=`basename $0`
 elb_timeout=60
@@ -139,12 +149,8 @@ do
 	do
 		if [[ $inservice_time_taken -gt $inservice_time_allowed ]]
 			then echo "During the last $inservice_time_allowed seconds the InService capacity of the $asg_group_name Auto Scaling Group did not meet the Auto Scaling Group's desired capacity of $asg_temporary_desired_capacity." 1>&2
-			#return max-size to initial size
-			return_as_initial_maxsize
-			#return temporary desired-capacity to initial desired-capacity
-			return_as_initial_desiredcapacity
 
-			as-resume-processes $asg_group_name
+			return_to_defaults
 
 			exit 79
 		fi
@@ -184,9 +190,4 @@ do
 	as-terminate-instance-in-auto-scaling-group --region $region --instance $instance_selected --no-decrement-desired-capacity --force > /dev/null
 done
 
-#return max-size to initial size
-return_as_initial_maxsize
-#return temporary desired-capacity to initial desired-capacity
-return_as_initial_desiredcapacity
-
-as-resume-processes $asg_group_name
+return_to_defaults
