@@ -152,12 +152,16 @@ do
 			exit 79
 		fi
 
-		for elb in "${asg_elbs[@]}"
+		for index in "${!asg_elbs[@]}"
 		do
-			inservice_instance_list=`elb-describe-instance-health $elb --region $region --show-long | grep InService`
+			inservice_instance_list=`elb-describe-instance-health ${asg_elbs[$index]} --region $region --show-long | grep InService`
 			inservice_instance_count=`echo "$inservice_instance_list" | wc -l`
 
-			[[ $inservice_instance_count -lt $asg_temporary_desired_capacity ]] && all_instances_inservice=0 || all_instances_inservice=1
+			if [ $index -eq 0 ]
+				then [ $inservice_instance_count -eq $asg_temporary_desired_capacity ] && all_instances_inservice=1 || all_instances_inservice=0
+			else
+				[[ ($all_instances_inservice -eq 1) && ($inservice_instance_count -eq $asg_temporary_desired_capacity) ]] && all_instances_inservice=1 || all_instances_inservice=0
+			fi
 		done
 
 		#sleeps a particular amount of time 
