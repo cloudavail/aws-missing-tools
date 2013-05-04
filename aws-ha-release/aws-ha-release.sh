@@ -86,11 +86,14 @@ fi
 if [[ `echo -e "$asg_result" | grep -c "^AUTO-SCALING-GROUP"` < 1 ]]
 	then echo "No Auto Scaling Group was found. Because no Auto Scaling Group has been found, $app_name does not know which Auto Scaling Group should have Instances terminated." 1>&2 ; exit 64
 fi
-#confirms that the selected Auto Scaling Group is not currently in state "Suspended Processing" - the "Suspending Processing" state prevents the termination of Auto Scaling Group instances and thus prevents aws-ha-release from running properly
-if [[ `echo -e "$asg_result" | grep -c "SUSPENDED-PROCESS"` > 1 ]]
-	then echo "Scaling Processes for the Auto Scaling Group $asg_group_name are currently suspended. $app_name will now exit as Scaling Processes are required for $app_name to run properly." 1>&2 ; exit 77
-fi
-
+#confirms that certain Auto Scaling processes are not suspended. For certain processes, the "Suspending Processing" state prevents the termination of Auto Scaling Group instances and thus prevents aws-ha-release from running properly.
+necessary_processes=(RemoveFromLoadBalancerLowPriority Terminate Launch HealthCheck AddToLoadBalancer)
+for process in "${necessary_processes[@]}"
+do
+	if [[ `echo -e "$asg_result" | grep -c "SUSPENDED-PROCESS$delimiter$process"` > 0 ]]
+		then echo "Scaling Process $process for the Auto Scaling Group $asg_group_name is currently suspended. $app_name will now exit as Scaling Processes ${necessary_processes[@]} are required for $app_name to run properly." 1>&2 ; exit 77
+	fi
+done
 
 #gets Auto Scaling Group max-size
 asg_initial_max_size=`echo $asg_result | grep ^AUTO-SCALING-GROUP | cut -d "$delimiter" -f 9`
@@ -100,13 +103,19 @@ asg_initial_desired_capacity=`echo "$asg_result" | grep ^AUTO-SCALING-GROUP | cu
 asg_temporary_desired_capacity=$((asg_initial_desired_capacity+1))
 #gets list of Auto Scaling Group Instances - these Instances will be terminated
 asg_instance_list=`echo "$asg_result" | grep ^INSTANCE | cut -d "$delimiter" -f 2`
-asg_elb=`echo "$asg_result" | grep ^AUTO-SCALING-GROUP | cut -d "$delimiter" -f 6`
+
+#builds an array of load balancers
+IFS=',' read -a asg_elbs <<< `echo "$asg_result" | grep ^AUTO-SCALING-GROUP | cut -d "$delimiter" -f 6`
+
 #if the max-size of the Auto Scaling Group is zero there is no reason to run
 if [[ $asg_initial_max_size -eq 0 ]]
 	then echo "$asg_group_name has a max-size of 0. As the Auto Scaling Group \"$asg_group_name\" has no active Instances there is no reason to run." ; exit 79
 fi
 #echo a list of Instances that are slated for termination
 echo -e "The list of Instances in Auto Scaling Group $asg_group_name that will be terminated is below:\n$asg_instance_list"
+
+as_processes_to_suspend="ReplaceUnhealthy,AlarmNotification,ScheduledActions,AZRebalance"
+as-suspend-processes $asg_group_name --processes $as_processes_to_suspend
 
 #if the desired-capacity of an Auto Scaling Group group is greater than or equal to the max-size of an Auto Scaling Group, the max-size must be increased by 1 to cycle instances while maintaining desired-capacity. This is particularly true of groups of 1 instance (where we'd be removing all instances if we cycled).
 if [[ $asg_initial_desired_capacity -ge $asg_initial_max_size ]]
@@ -124,33 +133,57 @@ as-update-auto-scaling-group $asg_group_name --region $region --desired-capacity
 #and begin recycling instances
 for instance_selected in $asg_instance_list
 do
+	all_instances_inservice=0
+
 	#the while loop below sleeps for the auto scaling group to have an InService capacity that is equal to the desired-capacity + 1
-	while [[ $inservice_instance_count -lt $asg_temporary_desired_capacity ]]
+	while [[ $all_instances_inservice -eq 0 ]]
 	do
 		if [[ $inservice_time_taken -gt $inservice_time_allowed ]]
 			then echo "During the last $inservice_time_allowed seconds the InService capacity of the $asg_group_name Auto Scaling Group did not meet the Auto Scaling Group's desired capacity of $asg_temporary_desired_capacity." 1>&2
-			#return max-size to initial size
-			return_as_initial_maxsize
-			#return temporary desired-capacity to initial desired-capacity
-			return_as_initial_desiredcapacity
+			echo "Because we can't be sure that instances created by this script are healthy, settings that were changed are being left as is. Settings that were changed:"
+
+			if [[ $max_size_change -eq 1 ]]
+				then echo "max size was increased by $max_size_change"
+			fi
+
+			echo "desired capacity was increased by 1"
+			echo "AutoScaling processes \"$as_processes_to_suspend\" were suspended."
+
 			exit 79
 		fi
-		inservice_instance_list=`elb-describe-instance-health $asg_elb --region $region --show-long | grep InService`
-		inservice_instance_count=`echo "$inservice_instance_list" | wc -l`
+
+		for index in "${!asg_elbs[@]}"
+		do
+			inservice_instance_list=`elb-describe-instance-health ${asg_elbs[$index]} --region $region --show-long | grep InService`
+			inservice_instance_count=`echo "$inservice_instance_list" | wc -l`
+
+			if [ $index -eq 0 ]
+				then [ $inservice_instance_count -eq $asg_temporary_desired_capacity ] && all_instances_inservice=1 || all_instances_inservice=0
+			else
+				[[ ($all_instances_inservice -eq 1) && ($inservice_instance_count -eq $asg_temporary_desired_capacity) ]] && all_instances_inservice=1 || all_instances_inservice=0
+			fi
+		done
+
 		#sleeps a particular amount of time 
 		sleep $inservice_polling_time
+
 		inservice_time_taken=$(($inservice_time_taken+$inservice_polling_time))
 		echo $inservice_instance_count "Instances are InService status. $asg_temporary_desired_capacity Instances are required to terminate the next instance. $inservice_time_taken seconds have elapsed while waiting for an Instance to reach InService status."
-	#if any status in $elbinstsancehealth != "InService" repeat
+	#if any status in $elbinstancehealth != "InService" repeat
 	done
+
 	#if the 
 	echo "$asg_group_name has reached a desired-capacity of $asg_temporary_desired_capacity. $app_name can now remove an Instance from service."
 
 	inservice_instance_count=0
 	inservice_time_taken=0
 	#remove instance from ELB - this ensures no traffic will be directed at an instance that will be terminated
-	echo "Instance $instance_selected will now be deregistered from ELB \"$asg_elb.\""
-	elb-deregister-instances-from-lb $asg_elb --region $region --instances $instance_selected > /dev/null
+	echo "Instance $instance_selected will now be deregistered from ELBs \"${asg_elbs[@]}.\""
+	for elb in "${asg_elbs[@]}"
+	do
+		elb-deregister-instances-from-lb $elb --region $region --instances $instance_selected > /dev/null
+	done
+
 	#sleep for "elb_timeout" seconds so that the instance can complete all processing before being terminated
 	sleep $elb_timeout
 	#terminates a pre-existing instance within the autoscaling group
@@ -160,5 +193,8 @@ done
 
 #return max-size to initial size
 return_as_initial_maxsize
+
 #return temporary desired-capacity to initial desired-capacity
 return_as_initial_desiredcapacity
+
+as-resume-processes $asg_group_name
