@@ -76,9 +76,9 @@ asg_result=`as-describe-auto-scaling-groups $asg_group_name --show-long --max-re
 #validate Auto Scaling Group Exists
 #user response for Auto Scaling Group lookup - alerts user if Auto Scaling Group was not found.
 if [[ $asg_result = "No AutoScalingGroups found" ]]
-	then echo "The Auto Scaling Group named \"$asg_group_name\" does not exist. You must specify an Auto Scaling Group that exists." 1>&2 ; exit 64
+	then echo "The Auto Scaling Group named \"$asg_group_name\" does not exist in the region named \"$region\". You must specify an Auto Scaling Group that exists." 1>&2 ; exit 64
 fi
-#validate - the pipeline of echo -e "$aasg_result" | grep -c "AUTO-SCALING-GROUP"  must only return one group found - in the case below - more than one group has been found
+#validate - the pipeline of echo -e "$asg_result" | grep -c "AUTO-SCALING-GROUP"  must only return one group found - in the case below - more than one group has been found
 if [[ `echo -e "$asg_result" | grep -c "^AUTO-SCALING-GROUP"` > 1  ]]
 	then echo "More than one Auto Scaling Group found. As more than one Auto Scaling Group has been found, $app_name does not know which Auto Scaling Group should have Instances terminated." 1>&2 ; exit 64
 fi
