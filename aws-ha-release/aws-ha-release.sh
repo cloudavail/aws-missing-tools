@@ -115,7 +115,7 @@ fi
 echo -e "The list of Instances in Auto Scaling Group $asg_group_name that will be terminated is below:\n$asg_instance_list"
 
 as_processes_to_suspend="ReplaceUnhealthy,AlarmNotification,ScheduledActions,AZRebalance"
-as-suspend-processes $asg_group_name --processes $as_processes_to_suspend
+as-suspend-processes $asg_group_name --processes $as_processes_to_suspend --region $region
 
 #if the desired-capacity of an Auto Scaling Group group is greater than or equal to the max-size of an Auto Scaling Group, the max-size must be increased by 1 to cycle instances while maintaining desired-capacity. This is particularly true of groups of 1 instance (where we'd be removing all instances if we cycled).
 if [[ $asg_initial_desired_capacity -ge $asg_initial_max_size ]]
@@ -197,4 +197,4 @@ return_as_initial_maxsize
 #return temporary desired-capacity to initial desired-capacity
 return_as_initial_desiredcapacity
 
-as-resume-processes $asg_group_name
+as-resume-processes $asg_group_name --region $region
