@@ -20,3 +20,8 @@ end
 Trollop::die :as_group_name, 'You must specify the AutoScaling Group Name: aws-ha-release.rb -a <group name>' unless opts[:as_group_name]
 Trollop::die :aws_access_key, 'If you specify the AWS Secret Key, you must also specify the Access Key with -o <key>.' if opts[:aws_secret_key] && opts[:aws_access_key].nil?
 Trollop::die :aws_secret_key, 'If you specify the AWS Access Key, you must also specify the Secret Key with -s <key>.' if opts[:aws_access_key] && opts[:aws_secret_key].nil?
+
+if opts[:aws_access_key].nil? || opts[:aws_secret_key].nil?
+  opts[:aws_access_key] = ENV['AWS_ACCESS_KEY']
+  opts[:aws_secret_key] = ENV['AWS_SECRET_KEY']
+end
