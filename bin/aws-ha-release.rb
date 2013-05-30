@@ -10,7 +10,7 @@ end
 
 opts = Trollop::options do
   opt :as_group_name, 'AutoScaling Group Name', type: :string, short: '-a'
-  opt :region, 'Region', type: :string, short: '-r'
+  opt :region, 'Region', default: 'us-east-1', type: :string, short: '-r'
   opt :elb_timeout, 'ELB Timeout', type: :int, default: 60, short: '-t'
   opt :inservice_time_allowed, 'InService Time Allowed', type: :int, default: 300, short: '-i'
   opt :aws_access_key, 'AWS Access Key', type: :string, short: '-o'

@@ -1,3 +1,10 @@
+PATH
+  remote: .
+  specs:
+    aws-missing-tools (0.0.1)
+      aws-sdk
+      trollop
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -40,6 +47,5 @@ PLATFORMS
 
 DEPENDENCIES
   aruba
-  aws-sdk
+  aws-missing-tools!
   rspec
-  trollop

@@ -1,6 +1,4 @@
 source 'https://rubygems.org'
 
-gem 'aws-sdk'
-gem 'trollop'
-gem 'rspec'
-gem 'aruba'
+# Specify your gem's dependencies in aws-missing-tools.gemspec
+gemspec
