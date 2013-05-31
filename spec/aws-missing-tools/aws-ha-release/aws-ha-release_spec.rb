@@ -48,10 +48,16 @@ describe 'aws-ha-release' do
       @group.update(max_size: 1, desired_capacity: 1)
       expect(@aws_ha_release.max_size_change).to eq 0
 
-      AWS::FakeAutoScaling::Group.any_instance.should_receive(:update).with({ max_size: 2 })
       @aws_ha_release.execute!
 
+      expect(@group.max_size).to eq 2
       expect(@aws_ha_release.max_size_change).to eq 1
+    end
+
+    it 'increases the desired capacity by 1' do
+      @aws_ha_release.execute!
+
+      expect(@group.desired_capacity).to eq 2
     end
   end
 end

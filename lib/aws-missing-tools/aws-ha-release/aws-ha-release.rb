@@ -21,5 +21,7 @@ class AwsHaRelease
       @group.update(max_size: @group.max_size + 1)
       @max_size_change += 1
     end
+
+    @group.update(desired_capacity: @group.desired_capacity + 1)
   end
 end
