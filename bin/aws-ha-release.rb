@@ -25,3 +25,6 @@ if opts[:aws_access_key].nil? || opts[:aws_secret_key].nil?
   opts[:aws_access_key] = ENV['AWS_ACCESS_KEY']
   opts[:aws_secret_key] = ENV['AWS_SECRET_KEY']
 end
+
+require 'aws-missing-tools'
+AwsHaRelease.new(opts)
