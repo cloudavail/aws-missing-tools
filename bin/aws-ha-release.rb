@@ -27,4 +27,4 @@ if opts[:aws_access_key].nil? || opts[:aws_secret_key].nil?
 end
 
 require 'aws-missing-tools'
-AwsHaRelease.new(opts)
+AwsHaRelease.new(opts).execute!

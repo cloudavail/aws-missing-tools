@@ -26,6 +26,13 @@ module AWS
 
       def initialize(name)
         @name = name
+        @suspended_processes = {}
+      end
+
+      def suspend_processes(*processes)
+        processes.each do |process|
+          @suspended_processes[process] = 'test'
+        end
       end
     end
   end

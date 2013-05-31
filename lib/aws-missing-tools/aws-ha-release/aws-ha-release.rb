@@ -9,4 +9,8 @@ class AwsHaRelease
       raise ArgumentError, "The Auto Scaling Group named #{opts[:as_group_name]} does not exist in #{opts[:region]}."
     end
   end
+
+  def execute!
+    @group.suspend_processes 'ReplaceUnhealthy', 'AlarmNotification', 'ScheduledActions', 'AZRebalance'
+  end
 end

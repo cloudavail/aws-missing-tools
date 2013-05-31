@@ -19,7 +19,7 @@ describe 'aws-ha-release' do
 
   describe '#initialize' do
     it 'initializes the AWS connection' do
-      as.groups.create 'test_group'
+      as.groups.create opts[:as_group_name]
 
       AWS.should_receive(:config).with(access_key_id: 'testaccesskey', secret_access_key: 'testsecretkey', region: 'test-region')
       AwsHaRelease.new(opts)
@@ -29,6 +29,19 @@ describe 'aws-ha-release' do
       lambda {
         AwsHaRelease.new(opts.merge!(as_group_name: 'fake_group'))
       }.should raise_error
+    end
+  end
+
+  describe '#execute!' do
+    before do
+      as.groups.create opts[:as_group_name]
+      @aws_ha_release = AwsHaRelease.new(opts)
+    end
+
+    it 'suspends certain autoscaling processes' do
+      AWS::FakeAutoScaling::Group.any_instance.should_receive(:suspend_processes)
+          .with('ReplaceUnhealthy', 'AlarmNotification', 'ScheduledActions', 'AZRebalance')
+      @aws_ha_release.execute!
     end
   end
 end
