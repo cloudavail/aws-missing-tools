@@ -22,16 +22,24 @@ module AWS
     end
 
     class Group
-      attr_reader :name
+      attr_reader :name, :max_size, :desired_capacity
 
       def initialize(name)
         @name = name
         @suspended_processes = {}
+        @max_size = 2
+        @desired_capacity = 1
       end
 
       def suspend_processes(*processes)
         processes.each do |process|
           @suspended_processes[process] = 'test'
+        end
+      end
+
+      def update(options = {})
+        options.each do |key, value|
+          self.instance_variable_set "@#{key}", value
         end
       end
     end

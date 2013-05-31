@@ -34,7 +34,7 @@ describe 'aws-ha-release' do
 
   describe '#execute!' do
     before do
-      as.groups.create opts[:as_group_name]
+      @group = as.groups.create opts[:as_group_name]
       @aws_ha_release = AwsHaRelease.new(opts)
     end
 
@@ -42,6 +42,16 @@ describe 'aws-ha-release' do
       AWS::FakeAutoScaling::Group.any_instance.should_receive(:suspend_processes)
           .with('ReplaceUnhealthy', 'AlarmNotification', 'ScheduledActions', 'AZRebalance')
       @aws_ha_release.execute!
+    end
+
+    it 'adjusts the maximum size if the desired capacity is equal to it' do
+      @group.update(max_size: 1, desired_capacity: 1)
+      expect(@aws_ha_release.max_size_change).to eq 0
+
+      AWS::FakeAutoScaling::Group.any_instance.should_receive(:update).with({ max_size: 2 })
+      @aws_ha_release.execute!
+
+      expect(@aws_ha_release.max_size_change).to eq 1
     end
   end
 end
