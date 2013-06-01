@@ -24,4 +24,20 @@ class AwsHaRelease
 
     @group.update(desired_capacity: @group.desired_capacity + 1)
   end
+
+  def instances_inservice?(load_balancer)
+    load_balancer.instances.health.each do |health|
+      return false unless health[:state] == 'InService'
+    end
+
+    true
+  end
+
+  def all_instances_inservice?(load_balancers)
+    load_balancers.each do |load_balancer|
+      return false unless instances_inservice?(load_balancer)
+    end
+
+    true
+  end
 end
