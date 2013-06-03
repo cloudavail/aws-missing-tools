@@ -14,6 +14,7 @@ A config.ini file configured as follows will migrate olddomain.com to newdomain.
 * to_zone_name = newdomain.com.
 * to_zone_id = Z1U8DOWB9FJWOU
 
+# Additional Information:
 - Author: Colin Johnson / colin@cloudavail.com
 - Date: 2013-06-03
 - Version 0.1
