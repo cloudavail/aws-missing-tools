@@ -15,7 +15,7 @@ Some potential uses for aws-ha-release are listed below:
 the above example would terminate and replace each EC2 Instance in the Auto Scaling group "my-scaling-group" with a new EC2 Instance.
 ## Required Options:
 aws-ha-release.sh requires the following option:
-`-a <auto-scaling-group-name>` - the name of the Auto Scaling Group for which you wish to perform a no downtime 
+`-a <auto-scaling-group-name>` - the name of the Auto Scaling Group for which you wish to perform a high availability release.
 ## Optional Parameters:
 `-r <region>` - allows you specify the region in which your Auto Scaling Group is in. By default aws-ha-release assumes the "us-east-1" region.
 `-t <elb_timeout>` - time, in seconds, in which an EC2 instance should be given to complete request processing prior to being terminated. Set this value high enough so that any requests sent through an ELB would have time to be completed by an EC2 instance. For example: if the ELB allows connections to stay open for 120 seconds then setting this value to 120 seconds allows an instance behind an ELB 120 seconds to complete all processing before being terminated. By default both an AWS ELB and aws-ha-release.sh utilize 60 seconds timeout period.
