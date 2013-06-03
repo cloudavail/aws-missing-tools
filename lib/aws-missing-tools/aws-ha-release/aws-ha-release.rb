@@ -12,6 +12,7 @@ class AwsHaRelease
     end
 
     @max_size_change = 0
+    @inservice_polling_time = 10
   end
 
   def execute!
@@ -23,6 +24,30 @@ class AwsHaRelease
     end
 
     @group.update(desired_capacity: @group.desired_capacity + 1)
+
+    @group.ec2_instances.each do |instance|
+      until all_instances_inservice?(@group.load_balancers)
+        sleep @inservice_polling_time
+      end
+
+      deregister_instance instance, @group.load_balancers
+      sleep opts[:elb_timeout]
+      instance.terminate false
+    end
+
+    @group.update(desired_capacity: @group.desired_capacity - 1)
+
+    if @max_size_change > 0
+      @group.update(max_size: @group.max_size - @max_size_change)
+    end
+
+    @group.resume_all_processes
+  end
+
+  def deregister_instance(instance, load_balancers)
+    load_balancers.each do |load_balancer|
+      load_balancer.instances.deregister instance
+    end
   end
 
   def instances_inservice?(load_balancer)

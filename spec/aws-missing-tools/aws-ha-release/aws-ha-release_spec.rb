@@ -13,7 +13,6 @@ describe 'aws-ha-release' do
   let(:as) { AWS::FakeAutoScaling.new }
 
   before do
-    AWS.stub(:config)
     AWS::AutoScaling.stub(:new).and_return(as)
   end
 
@@ -99,6 +98,32 @@ describe 'aws-ha-release' do
 
         expect(@aws_ha_release.all_instances_inservice?(load_balancers)).to eq true
       end
+    end
+  end
+
+  describe '#deregister_instance' do
+    before do
+      @group = as.groups.create opts[:as_group_name]
+      @aws_ha_release = AwsHaRelease.new(opts)
+    end
+
+    it 'deregisters an instance across all load balancers' do
+      instance_one = AWS::FakeEC2::Instance.new
+      instance_two = AWS::FakeEC2::Instance.new
+
+      elb_one = AWS::FakeELB::LoadBalancer.new 'test_load_balancer_01'
+      elb_two = AWS::FakeELB::LoadBalancer.new 'test_load_balancer_02'
+
+      elb_one.instances.register instance_one
+      elb_one.instances.register instance_two
+
+      elb_two.instances.register instance_one
+      elb_two.instances.register instance_two
+
+      @aws_ha_release.deregister_instance instance_one, [elb_one, elb_two]
+
+      expect(elb_one.instances).not_to include instance_one
+      expect(elb_two.instances).not_to include instance_one
     end
   end
 end

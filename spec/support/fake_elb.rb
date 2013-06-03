@@ -12,8 +12,18 @@ module AWS
       end
     end
 
-    class InstanceCollection
+    class InstanceCollection < Array
       def initialize
+      end
+
+      def register(*instances)
+        self.concat instances
+      end
+
+      def deregister(*instances)
+        instances.each do |i|
+          self.delete i
+        end
       end
 
       def health

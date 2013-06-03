@@ -42,6 +42,10 @@ module AWS
           self.instance_variable_set "@#{key}", value
         end
       end
+
+      def ec2_instances
+        []
+      end
     end
   end
 end
