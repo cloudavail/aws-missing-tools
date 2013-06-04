@@ -12,6 +12,11 @@ module AWS
       end
     end
 
+    class LoadBalancerCollection < Array
+      def initialize
+      end
+    end
+
     class InstanceCollection < Array
       def initialize
       end

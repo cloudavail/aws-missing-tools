@@ -1,3 +1,5 @@
+require 'timeout'
+
 class AwsHaRelease
   attr_reader :group
 
@@ -13,6 +15,7 @@ class AwsHaRelease
 
     @max_size_change = 0
     @inservice_polling_time = 10
+    @opts = opts
   end
 
   def execute!
@@ -26,13 +29,15 @@ class AwsHaRelease
     @group.update(desired_capacity: @group.desired_capacity + 1)
 
     @group.ec2_instances.each do |instance|
-      until all_instances_inservice?(@group.load_balancers)
-        sleep @inservice_polling_time
-      end
+      Timeout::timeout(@opts[:inservice_time_allowed]) do
+        until all_instances_inservice?(@group.load_balancers)
+          sleep @inservice_polling_time
+        end
 
-      deregister_instance instance, @group.load_balancers
-      sleep opts[:elb_timeout]
-      instance.terminate false
+        deregister_instance instance, @group.load_balancers
+        sleep @opts[:elb_timeout]
+        instance.terminate false
+      end
     end
 
     @group.update(desired_capacity: @group.desired_capacity - 1)

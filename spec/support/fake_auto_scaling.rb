@@ -48,7 +48,11 @@ module AWS
       end
 
       def ec2_instances
-        []
+        @ec2_instances ||= [AWS::FakeEC2::Instance.new, AWS::FakeEC2::Instance.new]
+      end
+
+      def load_balancers
+        @load_balancers ||= AWS::FakeELB::LoadBalancerCollection.new
       end
     end
   end

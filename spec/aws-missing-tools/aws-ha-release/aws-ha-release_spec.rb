@@ -6,7 +6,9 @@ describe 'aws-ha-release' do
       as_group_name: 'test_group',
       aws_access_key: 'testaccesskey',
       aws_secret_key: 'testsecretkey',
-      region: 'test-region'
+      region: 'test-region',
+      inservice_time_allowed: 300,
+      elb_timeout: 0
     }
   end
 
