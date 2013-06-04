@@ -1,3 +1,4 @@
+require 'aws-sdk'
 require 'timeout'
 
 class AwsHaRelease

@@ -1,9 +1,7 @@
 #!/usr/bin/env ruby
 
 begin
-  require 'aws-sdk'
   require 'trollop'
-  require 'timeout'
 rescue LoadError => e
   puts "The #{e.message.split('-').last.strip} gem must be installed."
   raise
