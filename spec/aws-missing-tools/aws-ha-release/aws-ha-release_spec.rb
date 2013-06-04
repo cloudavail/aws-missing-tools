@@ -43,61 +43,66 @@ describe 'aws-ha-release' do
       @aws_ha_release.execute!
     end
 
-    it 'adjusts the maximum size if the desired capacity is equal to it' do
+    it 'adjusts the max size as well as the desired capacity if the desired capacity is equal to it' do
       @group.update(max_size: 1, desired_capacity: 1)
-      expect(@aws_ha_release.max_size_change).to eq 0
 
+      @aws_ha_release.group.should_receive(:update).with(max_size: 2).ordered.and_call_original
+      @aws_ha_release.group.should_receive(:update).with(desired_capacity: 2).ordered.and_call_original
+      @aws_ha_release.group.should_receive(:update).with(desired_capacity: 1).ordered.and_call_original
+      @aws_ha_release.group.should_receive(:update).with(max_size: 1).ordered.and_call_original
       @aws_ha_release.execute!
-
-      expect(@group.max_size).to eq 2
-      expect(@aws_ha_release.max_size_change).to eq 1
     end
 
-    it 'increases the desired capacity by 1' do
+    it 'only adjusts the desired capacity if max size does not equal desired capacity' do
+      @aws_ha_release.group.should_receive(:update).with(desired_capacity: 2).ordered.and_call_original
+      @aws_ha_release.group.should_receive(:update).with(desired_capacity: 1).ordered.and_call_original
       @aws_ha_release.execute!
+    end
+  end
 
-      expect(@group.desired_capacity).to eq 2
+  describe 'determining if instances are in service' do
+    before do
+      @group = as.groups.create opts[:as_group_name]
+      @aws_ha_release = AwsHaRelease.new(opts)
     end
 
-    context 'determining if instances are in service' do
-      it 'checks all instances across a given load balancer' do
-        load_balancer = AWS::FakeELB::LoadBalancer.new 'test_load_balancer_01'
+    it 'checks all instances across a given load balancer' do
+      load_balancer = AWS::FakeELB::LoadBalancer.new 'test_load_balancer_01'
 
-        expect(@aws_ha_release.instances_inservice?(load_balancer)).to eq false
+      expect(@aws_ha_release.instances_inservice?(load_balancer)).to eq false
 
-        load_balancer.instances.health[1] = {
-          instance: AWS::FakeEC2::Instance.new,
-          description: 'N/A',
-          state: 'InService',
-          reason_code: 'N/A'
-        }
+      load_balancer.instances.health[1] = {
+        instance: AWS::FakeEC2::Instance.new,
+        description: 'N/A',
+        state: 'InService',
+        reason_code: 'N/A'
+      }
 
-        expect(@aws_ha_release.instances_inservice?(load_balancer)).to eq true
-      end
+      expect(@aws_ha_release.instances_inservice?(load_balancer)).to eq true
+    end
 
-      it 'checks all instances across an array of load balancers' do
-        load_balancers = [AWS::FakeELB::LoadBalancer.new('test_load_balancer_01'), AWS::FakeELB::LoadBalancer.new('test_load_balancer_02')]
+    it 'checks all instances across an array of load balancers' do
+      load_balancers = [AWS::FakeELB::LoadBalancer.new('test_load_balancer_01'), AWS::FakeELB::LoadBalancer.new('test_load_balancer_02')]
 
-        expect(@aws_ha_release.all_instances_inservice?(load_balancers)).to eq false
+      expect(@aws_ha_release.all_instances_inservice?(load_balancers)).to eq false
 
-        load_balancers[0].instances.health[1] = {
-          instance: AWS::FakeEC2::Instance.new,
-          description: 'N/A',
-          state: 'InService',
-          reason_code: 'N/A'
-        }
+      load_balancers[0].instances.health[1] = {
+        instance: AWS::FakeEC2::Instance.new,
+        description: 'N/A',
+        state: 'InService',
+        reason_code: 'N/A'
+      }
 
-        expect(@aws_ha_release.all_instances_inservice?(load_balancers)).to eq false
+      expect(@aws_ha_release.all_instances_inservice?(load_balancers)).to eq false
 
-        load_balancers[1].instances.health[1] = {
-          instance: AWS::FakeEC2::Instance.new,
-          description: 'N/A',
-          state: 'InService',
-          reason_code: 'N/A'
-        }
+      load_balancers[1].instances.health[1] = {
+        instance: AWS::FakeEC2::Instance.new,
+        description: 'N/A',
+        state: 'InService',
+        reason_code: 'N/A'
+      }
 
-        expect(@aws_ha_release.all_instances_inservice?(load_balancers)).to eq true
-      end
+      expect(@aws_ha_release.all_instances_inservice?(load_balancers)).to eq true
     end
   end
 

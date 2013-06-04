@@ -1,5 +1,5 @@
 class AwsHaRelease
-  attr_reader :max_size_change
+  attr_reader :group
 
   def initialize(opts)
     AWS.config(access_key_id: opts[:aws_access_key], secret_access_key: opts[:aws_secret_key], region: opts[:region])
@@ -20,7 +20,7 @@ class AwsHaRelease
 
     if @group.max_size == @group.desired_capacity
       @group.update(max_size: @group.max_size + 1)
-      @max_size_change += 1
+      @max_size_change = 1
     end
 
     @group.update(desired_capacity: @group.desired_capacity + 1)
@@ -39,6 +39,7 @@ class AwsHaRelease
 
     if @max_size_change > 0
       @group.update(max_size: @group.max_size - @max_size_change)
+      @max_size_change = 0
     end
 
     @group.resume_all_processes

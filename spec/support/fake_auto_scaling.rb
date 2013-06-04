@@ -37,6 +37,10 @@ module AWS
         end
       end
 
+      def resume_all_processes
+        @suspended_processes.clear
+      end
+
       def update(options = {})
         options.each do |key, value|
           self.instance_variable_set "@#{key}", value
