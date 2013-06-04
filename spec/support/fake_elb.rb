@@ -4,14 +4,11 @@ module AWS
     end
 
     class LoadBalancer
-      attr_reader :name
+      attr_reader :name, :instances
 
-      def initialize(name, options = {})
+      def initialize(name, instances_and_healths)
         @name = name
-      end
-
-      def instances
-        @instances ||= InstanceCollection.new
+        @instances ||= InstanceCollection.new(instances_and_healths)
       end
     end
 
@@ -21,7 +18,15 @@ module AWS
     end
 
     class InstanceCollection < Array
-      def initialize
+      attr_reader :health
+
+      def initialize(instances_and_healths)
+        @health = []
+
+        instances_and_healths.each do |instance_and_health|
+          self << instance_and_health[:instance]
+          instance_and_health[:healthy] ? make_instance_healthy(instance_and_health[:instance]) : make_instance_unhealthy(instance_and_health[:instance])
+        end
       end
 
       def register(*instances)
@@ -34,21 +39,40 @@ module AWS
         end
       end
 
-      def health
-        @health ||= [
-          {
-            instance: AWS::FakeEC2::Instance.new,
-            description: 'N/A',
-            state: 'InService',
-            reason_code: 'N/A'
-          },
-          {
-            instance: AWS::FakeEC2::Instance.new,
-            description: 'Instance has failed at least the UnhealthyThreshold number of health checks consecutively.',
-            state: 'OutOfService',
-            reason_code: 'Instance'
-          }
-        ]
+      def make_instance_healthy(instance)
+        opts = {
+          instance: instance,
+          description: 'N/A',
+          state: 'InService',
+          reason_code: 'N/A'
+        }
+
+        @health.each_with_index do |health, i|
+          if health[:instance] == instance
+            @health[i] = opts
+            return
+          end
+        end
+
+        @health << opts
+      end
+
+      def make_instance_unhealthy(instance)
+        opts = {
+          instance: instance,
+          description: 'Instance has failed at least the UnhealthyThreshold number of health checks consecutively.',
+          state: 'OutOfService',
+          reason_code: 'Instance'
+        }
+
+        @health.each_with_index do |health, i|
+          if health[:instance] == instance
+            @health[i] = opts
+            return
+          end
+        end
+
+        @health << opts
       end
     end
   end

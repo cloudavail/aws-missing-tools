@@ -14,6 +14,10 @@ describe 'aws-ha-release' do
 
   let(:as) { AWS::FakeAutoScaling.new }
 
+  let(:instance_one) { AWS::FakeEC2::Instance.new }
+
+  let(:instance_two) { AWS::FakeEC2::Instance.new }
+
   before do
     AWS::AutoScaling.stub(:new).and_return(as)
     IO.any_instance.stub(:puts)
@@ -71,46 +75,81 @@ describe 'aws-ha-release' do
   describe 'determining if instances are in service' do
     before do
       @group = as.groups.create opts[:as_group_name]
+      @group.update(desired_capacity: 2)
       @aws_ha_release = AwsHaRelease.new(opts)
     end
 
     it 'checks all instances across a given load balancer' do
-      load_balancer = AWS::FakeELB::LoadBalancer.new 'test_load_balancer_01'
+      load_balancer = AWS::FakeELB::LoadBalancer.new 'test_load_balancer_01', [
+        {
+          instance: instance_one,
+          healthy: true
+        },
+        {
+          instance: instance_two,
+          healthy: false
+        }
+      ]
 
       expect(@aws_ha_release.instances_inservice?(load_balancer)).to eq false
 
-      load_balancer.instances.health[1] = {
-        instance: AWS::FakeEC2::Instance.new,
-        description: 'N/A',
-        state: 'InService',
-        reason_code: 'N/A'
-      }
-
+      load_balancer.instances.make_instance_healthy(instance_two)
       expect(@aws_ha_release.instances_inservice?(load_balancer)).to eq true
     end
 
     it 'checks all instances across an array of load balancers' do
-      load_balancers = [AWS::FakeELB::LoadBalancer.new('test_load_balancer_01'), AWS::FakeELB::LoadBalancer.new('test_load_balancer_02')]
+      load_balancers = [
+        AWS::FakeELB::LoadBalancer.new('test_load_balancer_01', [
+          {
+            instance: instance_one,
+            healthy: true
+          },
+          {
+            instance: instance_two,
+            healthy: false
+          }
+        ]), AWS::FakeELB::LoadBalancer.new('test_load_balancer_02', [
+          {
+            instance: instance_one,
+            healthy: true
+          },
+          {
+            instance: instance_two,
+            healthy: false
+          }
+        ])
+      ]
 
       expect(@aws_ha_release.all_instances_inservice?(load_balancers)).to eq false
 
-      load_balancers[0].instances.health[1] = {
-        instance: AWS::FakeEC2::Instance.new,
-        description: 'N/A',
-        state: 'InService',
-        reason_code: 'N/A'
-      }
-
+      load_balancers[0].instances.make_instance_healthy(instance_two)
       expect(@aws_ha_release.all_instances_inservice?(load_balancers)).to eq false
 
-      load_balancers[1].instances.health[1] = {
-        instance: AWS::FakeEC2::Instance.new,
-        description: 'N/A',
-        state: 'InService',
-        reason_code: 'N/A'
-      }
-
+      load_balancers[1].instances.make_instance_healthy(instance_two)
       expect(@aws_ha_release.all_instances_inservice?(load_balancers)).to eq true
+    end
+
+    it 'requires the number of inservice instances to match the desired capacity' do
+      load_balancer = AWS::FakeELB::LoadBalancer.new 'test_load_balancer_01', [
+        {
+          instance: instance_one,
+          healthy: true
+        },
+        {
+          instance: instance_two,
+          healthy: true
+        }
+      ]
+
+      @group.update(desired_capacity: 3)
+
+      expect(@aws_ha_release.instances_inservice?(load_balancer)).to eq false
+
+      instance_three = AWS::FakeEC2::Instance.new
+      load_balancer.instances.register instance_three
+      load_balancer.instances.make_instance_healthy(instance_three)
+
+      expect(@aws_ha_release.instances_inservice?(load_balancer)).to eq true
     end
   end
 
@@ -121,11 +160,26 @@ describe 'aws-ha-release' do
     end
 
     it 'deregisters an instance across all load balancers' do
-      instance_one = AWS::FakeEC2::Instance.new
-      instance_two = AWS::FakeEC2::Instance.new
-
-      elb_one = AWS::FakeELB::LoadBalancer.new 'test_load_balancer_01'
-      elb_two = AWS::FakeELB::LoadBalancer.new 'test_load_balancer_02'
+      elb_one = AWS::FakeELB::LoadBalancer.new 'test_load_balancer_01', [
+        {
+          instance: instance_one,
+          healthy: true
+        },
+        {
+          instance: instance_two,
+          healthy: true
+        }
+      ]
+      elb_two = AWS::FakeELB::LoadBalancer.new 'test_load_balancer_02', [
+        {
+          instance: instance_one,
+          healthy: true
+        },
+        {
+          instance: instance_two,
+          healthy: true
+        }
+      ]
 
       elb_one.instances.register instance_one
       elb_one.instances.register instance_two

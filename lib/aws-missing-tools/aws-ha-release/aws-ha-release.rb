@@ -94,9 +94,11 @@ class AwsHaRelease
   end
 
   def instances_inservice?(load_balancer)
-    load_balancer.instances.health.each do |health|
-      unless health[:state] == 'InService'
-        puts "Instance #{health[:instance].id} is currently #{health[:state]} on load balancer #{load_balancer.name}."
+    return false if load_balancer.instances.count != @group.desired_capacity
+
+    load_balancer.instances.health.each do |instance_health|
+      unless instance_health[:state] == 'InService'
+        puts "Instance #{instance_health[:instance].id} is currently #{instance_health[:state]} on load balancer #{load_balancer.name}."
 
         return false
       end
