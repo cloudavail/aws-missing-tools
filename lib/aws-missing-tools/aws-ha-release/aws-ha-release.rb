@@ -37,7 +37,7 @@ class AwsHaRelease
 
     @group.update(desired_capacity: @group.desired_capacity + 1)
 
-    puts "The list of Instances in Auto Scaling Group $asg_group_name that will be terminated is:\n#{@group.ec2_instances.map(&:id)}"
+    puts "The list of Instances in Auto Scaling Group #{@group.name} that will be terminated is:\n#{@group.ec2_instances.map(&:id)}"
     @group.ec2_instances.each do |instance|
       time_taken = 0
 
@@ -53,6 +53,8 @@ class AwsHaRelease
 
           deregister_instance instance, @group.load_balancers
           sleep @opts[:elb_timeout]
+
+          puts "Instance #{instance.id} will now be terminated. By terminating this instance, the actual capacity will be decreased to 1 under desired-capacity."
           instance.terminate false
         end
       rescue Timeout::Error => e
