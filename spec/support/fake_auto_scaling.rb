@@ -68,6 +68,9 @@ module AWS
       def id
         'i-test'
       end
+
+      def ec2_instance
+      end
     end
   end
 end

@@ -100,7 +100,7 @@ module AwsMissingTools
               sleep @inservice_polling_time
             end
 
-            deregister_instance instance, @group.load_balancers
+            deregister_instance instance.ec2_instance, @group.load_balancers
             sleep @opts[:elb_timeout]
 
             puts "Instance #{instance.id} will now be terminated. By terminating this instance, the actual capacity will be decreased to 1 under desired-capacity."
