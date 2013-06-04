@@ -29,9 +29,7 @@ module AwsMissingTools
         inservice_time_allowed: 300
       }
 
-      OptionParser.new do |opts|
-        opts.banner = 'Usage: aws-ha-release.rb -a <group name> [options]'
-
+      OptionParser.new('Usage: aws-ha-release.rb -a <group name> [options]', 50) do |opts|
         opts.on('-a', '--as-group-name GROUP_NAME', 'AutoScaling Group Name') do |v|
           options[:as_group_name] = v
         end
