@@ -1,23 +1,71 @@
-require 'aws-sdk'
 require 'timeout'
+require 'optparse'
 
 class AwsHaRelease
   attr_reader :group
 
-  def initialize(opts)
-    AWS.config(access_key_id: opts[:aws_access_key], secret_access_key: opts[:aws_secret_key], region: opts[:region])
+  def initialize(argv)
+    @opts = AwsHaRelease.parse_options(argv)
+
+    AWS.config(access_key_id: @opts[:aws_access_key], secret_access_key: @opts[:aws_secret_key], region: @opts[:region])
 
     @as = AWS::AutoScaling.new
-    @group = @as.groups[opts[:as_group_name]]
+    @group = @as.groups[@opts[:as_group_name]]
 
     if @group.nil?
-      raise ArgumentError, "The Auto Scaling Group named #{opts[:as_group_name]} does not exist in #{opts[:region]}."
+      raise ArgumentError, "The Auto Scaling Group named #{@opts[:as_group_name]} does not exist in #{@opts[:region]}."
     end
 
     @max_size_change = 0
     @inservice_polling_time = 10
-    @opts = opts
     @processes_to_suspend = %w(ReplaceUnhealthy AlarmNotification ScheduledActions AZRebalance)
+  end
+
+  def self.parse_options(arguments)
+    options = {
+      region: 'us-east-1',
+      elb_timeout: 60,
+      inservice_time_allowed: 300
+    }
+
+    OptionParser.new do |opts|
+      opts.banner = 'Usage: aws-ha-release.rb -a <group name> [options]'
+
+      opts.on('-a', '--as-group-name GROUP_NAME', 'AutoScaling Group Name') do |v|
+        options[:as_group_name] = v
+      end
+
+      opts.on('-r', '--region REGION', 'Region') do |v|
+        options[:region] = v
+      end
+
+      opts.on('-t', '--elb-timeout TIME', 'ELB Timeout (seconds)') do |v|
+        options[:elb_timeout] = v.to_i
+      end
+
+      opts.on('-i', '--inservice-time-allowed TIME', 'Time allowed for instance to come in service (seconds)') do |v|
+        options[:inservice_time_allowed] = v.to_i
+      end
+
+      opts.on('-o', '--aws_access_key AWS_ACCESS_KEY', 'AWS Access Key') do |v|
+        options[:aws_access_key] = v
+      end
+
+      opts.on('-s', '--aws_secret_key AWS_SECRET_KEY', 'AWS Secret Key') do |v|
+        options[:aws_secret_key] = v
+      end
+    end.parse!(arguments)
+
+    raise OptionParser::MissingArgument, 'You must specify the AutoScaling Group Name: aws-ha-release.rb -a <group name>' if options[:as_group_name].nil?
+
+    if options[:aws_secret_key] && options[:aws_access_key].nil? || options[:aws_access_key] && options[:aws_secret_key].nil?
+      raise OptionParser::MissingArgument, 'If specifying either the AWS Access or Secret Key, then the other must also be specified. aws-ha-release.rb -a <group name> -o access_key -s secret_key'
+    elsif options[:aws_secret_key].nil? && options[:aws_access_key].nil?
+      options[:aws_access_key] = ENV['AWS_ACCESS_KEY']
+      options[:aws_secret_key] = ENV['AWS_SECRET_KEY']
+    end
+
+    options
   end
 
   def execute!

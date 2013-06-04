@@ -16,8 +16,6 @@ Gem::Specification.new do |gem|
   gem.version       = AwsMissingTools::VERSION
 
   gem.add_dependency 'aws-sdk'
-  gem.add_dependency 'trollop'
 
-  gem.add_development_dependency 'aruba'
   gem.add_development_dependency 'rspec'
 end
