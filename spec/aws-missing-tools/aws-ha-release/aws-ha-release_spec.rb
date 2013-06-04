@@ -19,26 +19,26 @@ describe 'aws-ha-release' do
       as.groups.create opts[1]
 
       AWS.should_receive(:config).with(access_key_id: 'testaccesskey', secret_access_key: 'testsecretkey', region: 'test_region')
-      AwsHaRelease.new(opts)
+      AwsMissingTools::AwsHaRelease.new(opts)
     end
 
     it 'ensures the as group exists' do
       lambda {
         opts[1] = 'fake_group'
-        AwsHaRelease.new(opts)
+        AwsMissingTools::AwsHaRelease.new(opts)
       }.should raise_error
     end
   end
 
   describe '#parse_options' do
     it 'requires the autoscaling group name to be passed in' do
-      expect{ AwsHaRelease.parse_options([]) }.to raise_error OptionParser::MissingArgument
-      expect(AwsHaRelease.parse_options(%w(-a test_group))[:as_group_name]).to eq 'test_group'
-      expect(AwsHaRelease.parse_options(%w(--as-group-name test_group))[:as_group_name]).to eq 'test_group'
+      expect{ AwsMissingTools::AwsHaRelease.parse_options([]) }.to raise_error OptionParser::MissingArgument
+      expect(AwsMissingTools::AwsHaRelease.parse_options(%w(-a test_group))[:as_group_name]).to eq 'test_group'
+      expect(AwsMissingTools::AwsHaRelease.parse_options(%w(--as-group-name test_group))[:as_group_name]).to eq 'test_group'
     end
 
     it 'sets default options' do
-      options = AwsHaRelease.parse_options(%w(-a test_group))
+      options = AwsMissingTools::AwsHaRelease.parse_options(%w(-a test_group))
       expect(options[:elb_timeout]).not_to be_nil
       expect(options[:region]).not_to be_nil
       expect(options[:inservice_time_allowed]).not_to be_nil
@@ -49,27 +49,27 @@ describe 'aws-ha-release' do
     context 'optional params' do
       it 'ELB timeout' do
         [%w(-a test_group -t 10), %w(-a test_group --elb-timeout 10)].each do |options|
-          expect(AwsHaRelease.parse_options(options)[:elb_timeout]).to eq 10
+          expect(AwsMissingTools::AwsHaRelease.parse_options(options)[:elb_timeout]).to eq 10
         end
       end
 
       it 'region' do
         [%w(-a test_group -r test_region), %w(-a test_group --region test_region)].each do |options|
-          expect(AwsHaRelease.parse_options(options)[:region]).to eq 'test_region'
+          expect(AwsMissingTools::AwsHaRelease.parse_options(options)[:region]).to eq 'test_region'
         end
       end
 
       it 'inservice time allowed' do
         [%w(-a test_group -i 300), %w(-a test_group --inservice-time-allowed 300)].each do |options|
-          expect(AwsHaRelease.parse_options(options)[:inservice_time_allowed]).to eq 300
+          expect(AwsMissingTools::AwsHaRelease.parse_options(options)[:inservice_time_allowed]).to eq 300
         end
       end
 
       it 'aws_access_key and aws_secret_key' do
-        expect{ AwsHaRelease.parse_options(%w(-a test_group -o testkey)) }.to raise_error OptionParser::MissingArgument
-        expect{ AwsHaRelease.parse_options(%w(-a test_group -s testsecretkey)) }.to raise_error OptionParser::MissingArgument
+        expect{ AwsMissingTools::AwsHaRelease.parse_options(%w(-a test_group -o testkey)) }.to raise_error OptionParser::MissingArgument
+        expect{ AwsMissingTools::AwsHaRelease.parse_options(%w(-a test_group -s testsecretkey)) }.to raise_error OptionParser::MissingArgument
 
-        options = AwsHaRelease.parse_options(%w(-a test_group -o testkey -s testsecretkey))
+        options = AwsMissingTools::AwsHaRelease.parse_options(%w(-a test_group -o testkey -s testsecretkey))
         expect(options[:aws_access_key]).to eq 'testkey'
         expect(options[:aws_secret_key]).to eq 'testsecretkey'
       end
@@ -79,7 +79,7 @@ describe 'aws-ha-release' do
   describe '#execute!' do
     before do
       @group = as.groups.create opts[1]
-      @aws_ha_release = AwsHaRelease.new(opts)
+      @aws_ha_release = AwsMissingTools::AwsHaRelease.new(opts)
     end
 
     it 'suspends certain autoscaling processes' do
@@ -114,7 +114,7 @@ describe 'aws-ha-release' do
     before do
       @group = as.groups.create opts[1]
       @group.update(desired_capacity: 2)
-      @aws_ha_release = AwsHaRelease.new(opts)
+      @aws_ha_release = AwsMissingTools::AwsHaRelease.new(opts)
     end
 
     it 'checks all instances across a given load balancer' do
@@ -194,7 +194,7 @@ describe 'aws-ha-release' do
   describe '#deregister_instance' do
     before do
       @group = as.groups.create opts[1]
-      @aws_ha_release = AwsHaRelease.new(opts)
+      @aws_ha_release = AwsMissingTools::AwsHaRelease.new(opts)
     end
 
     it 'deregisters an instance across all load balancers' do
