@@ -100,6 +100,7 @@ module AwsMissingTools
               sleep @inservice_polling_time
             end
 
+            puts "\nThe new instance was found to be healthy; one old instance will now be removed from the load balancers."
             deregister_instance instance.ec2_instance, @group.load_balancers
             sleep @opts[:elb_timeout]
 
@@ -121,8 +122,8 @@ module AwsMissingTools
         end
       end
 
-      puts "#{@group.name} had its desired-capacity increased temporarily by 1 to a desired-capacity of #{@group.desired_capacity}."
-      puts "$app_name will now return the desired-capacity of #{@group.name} to its original desired-capacity of #{@group.desired_capacity - 1}."
+      puts "\n#{@group.name} had its desired-capacity increased temporarily by 1 to a desired-capacity of #{@group.desired_capacity}."
+      puts "The desired-capacity of #{@group.name} will now be returned to its original desired-capacity of #{@group.desired_capacity - 1}."
       @group.update(desired_capacity: @group.desired_capacity - 1)
 
       if @max_size_change > 0
