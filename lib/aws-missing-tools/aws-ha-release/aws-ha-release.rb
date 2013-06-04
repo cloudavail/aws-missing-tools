@@ -5,6 +5,9 @@ module AwsMissingTools
   class AwsHaRelease
     attr_reader :group
 
+    PROCESSES_TO_SUSPEND = %w(ReplaceUnhealthy AlarmNotification ScheduledActions AZRebalance)
+    INSERVICE_POLLING_TIME = 10
+
     def initialize(argv)
       @opts = AwsHaRelease.parse_options(argv)
 
@@ -18,8 +21,6 @@ module AwsMissingTools
       end
 
       @max_size_change = 0
-      @inservice_polling_time = 10
-      @processes_to_suspend = %w(ReplaceUnhealthy AlarmNotification ScheduledActions AZRebalance)
     end
 
     def self.parse_options(arguments)
@@ -74,7 +75,7 @@ module AwsMissingTools
         end
       end
 
-      @group.suspend_processes @processes_to_suspend
+      @group.suspend_processes PROCESSES_TO_SUSPEND
 
       if @group.max_size == @group.desired_capacity
         puts "#{@group.name} has a max-size of #{@group.max_size}. In order to recycle instances max-size will be temporarily increased by 1."
@@ -94,8 +95,8 @@ module AwsMissingTools
             until all_instances_inservice?(@group.load_balancers)
               puts "#{time_taken} seconds have elapsed while waiting for an Instance to reach InService status."
 
-              time_taken += @inservice_polling_time
-              sleep @inservice_polling_time
+              time_taken += INSERVICE_POLLING_TIME
+              sleep INSERVICE_POLLING_TIME
             end
 
             puts "\nThe new instance was found to be healthy; one old instance will now be removed from the load balancers."
@@ -109,7 +110,7 @@ module AwsMissingTools
           puts "\nDuring the last #{time_taken} seconds, a new AutoScaling instance failed to become healthy."
           puts "The following settings were changed and will not be changed back by this script:\n"
 
-          puts "AutoScaling processes #{@processes_to_suspend} were suspended."
+          puts "AutoScaling processes #{PROCESSES_TO_SUSPEND} were suspended."
           puts "The desired capacity was changed from #{@group.desired_capacity - 1} to #{@group.desired_capacity}."
 
           if @max_size_change > 0
