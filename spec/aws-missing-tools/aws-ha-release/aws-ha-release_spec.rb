@@ -16,6 +16,7 @@ describe 'aws-ha-release' do
 
   before do
     AWS::AutoScaling.stub(:new).and_return(as)
+    IO.any_instance.stub(:puts)
   end
 
   describe '#initialize' do
@@ -41,9 +42,11 @@ describe 'aws-ha-release' do
 
     it 'suspends certain autoscaling processes' do
       AWS::FakeAutoScaling::Group.any_instance.should_receive(:suspend_processes)
-          .with('ReplaceUnhealthy', 'AlarmNotification', 'ScheduledActions', 'AZRebalance')
+          .with(%w(ReplaceUnhealthy AlarmNotification ScheduledActions AZRebalance))
       @aws_ha_release.execute!
     end
+
+    it 'requires certain autoscaling processes to not be suspended'
 
     it 'adjusts the max size as well as the desired capacity if the desired capacity is equal to it' do
       @group.update(max_size: 1, desired_capacity: 1)

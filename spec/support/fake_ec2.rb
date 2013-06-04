@@ -9,6 +9,10 @@ module AWS
 
       def terminate(decrement_desired_capacity)
       end
+
+      def id
+        'i-test'
+      end
     end
   end
 end

@@ -4,7 +4,10 @@ module AWS
     end
 
     class LoadBalancer
+      attr_reader :name
+
       def initialize(name, options = {})
+        @name = name
       end
 
       def instances
