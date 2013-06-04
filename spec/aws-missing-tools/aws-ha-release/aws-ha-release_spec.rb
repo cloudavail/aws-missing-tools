@@ -46,7 +46,10 @@ describe 'aws-ha-release' do
       @aws_ha_release.execute!
     end
 
-    it 'requires certain autoscaling processes to not be suspended'
+    it 'requires certain autoscaling processes to not be suspended' do
+      @aws_ha_release.group.suspend_processes %w(RemoveFromLoadBalancerLowPriority Terminate Launch HealthCheck AddToLoadBalancer)
+      expect{ @aws_ha_release.execute! }.to raise_error
+    end
 
     it 'adjusts the max size as well as the desired capacity if the desired capacity is equal to it' do
       @group.update(max_size: 1, desired_capacity: 1)

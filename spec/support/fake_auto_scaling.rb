@@ -22,7 +22,7 @@ module AWS
     end
 
     class Group
-      attr_reader :name, :max_size, :desired_capacity
+      attr_reader :name, :max_size, :desired_capacity, :suspended_processes
 
       def initialize(name)
         @name = name
@@ -31,7 +31,7 @@ module AWS
         @desired_capacity = 1
       end
 
-      def suspend_processes(*processes)
+      def suspend_processes(processes)
         processes.each do |process|
           @suspended_processes[process] = 'test'
         end

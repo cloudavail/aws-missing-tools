@@ -20,6 +20,12 @@ class AwsHaRelease
   end
 
   def execute!
+    %w(RemoveFromLoadBalancerLowPriority Terminate Launch HealthCheck AddToLoadBalancer).each do |process|
+      if @group.suspended_processes.keys.include? process
+        raise "AutoScaling process #{process} is currently suspended on #{@group.name} but is necessary for this script."
+      end
+    end
+
     @group.suspend_processes @processes_to_suspend
 
     if @group.max_size == @group.desired_capacity
