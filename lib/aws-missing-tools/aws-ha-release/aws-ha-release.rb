@@ -86,8 +86,8 @@ module AwsMissingTools
 
       @group.update(desired_capacity: @group.desired_capacity + 1)
 
-      puts "The list of Instances in Auto Scaling Group #{@group.name} that will be terminated is:\n#{@group.ec2_instances.map(&:id)}"
-      @group.ec2_instances.each do |instance|
+      puts "The list of Instances in Auto Scaling Group #{@group.name} that will be terminated is:\n#{@group.auto_scaling_instances.map(&:id)}"
+      @group.auto_scaling_instances.each do |instance|
         time_taken = 0
 
         begin

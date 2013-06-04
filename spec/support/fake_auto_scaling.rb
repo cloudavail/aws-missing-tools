@@ -47,12 +47,26 @@ module AWS
         end
       end
 
-      def ec2_instances
-        @ec2_instances ||= [AWS::FakeEC2::Instance.new, AWS::FakeEC2::Instance.new]
+      def auto_scaling_instances
+        @auto_scaling_instances ||= [AWS::FakeAutoScaling::Instance.new(self), AWS::FakeAutoScaling::Instance.new(self)]
       end
 
       def load_balancers
         @load_balancers ||= AWS::FakeELB::LoadBalancerCollection.new
+      end
+    end
+
+    class Instance
+      def initialize(group)
+        @group = group
+      end
+
+      def terminate(decrement_desired_capacity)
+        @group.update(desired_capacity: @group.desired_capacity - 1) if decrement_desired_capacity
+      end
+
+      def id
+        'i-test'
       end
     end
   end

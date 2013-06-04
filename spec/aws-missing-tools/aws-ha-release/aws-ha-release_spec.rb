@@ -5,9 +5,9 @@ describe 'aws-ha-release' do
 
   let(:as) { AWS::FakeAutoScaling.new }
 
-  let(:instance_one) { AWS::FakeEC2::Instance.new }
+  let(:instance_one) { AWS::FakeAutoScaling::Instance.new(@group) }
 
-  let(:instance_two) { AWS::FakeEC2::Instance.new }
+  let(:instance_two) { AWS::FakeAutoScaling::Instance.new(@group) }
 
   before do
     AWS::AutoScaling.stub(:new).and_return(as)
@@ -183,7 +183,7 @@ describe 'aws-ha-release' do
 
       expect(@aws_ha_release.instances_inservice?(load_balancer)).to eq false
 
-      instance_three = AWS::FakeEC2::Instance.new
+      instance_three = AWS::FakeAutoScaling::Instance.new(@group)
       load_balancer.instances.register instance_three
       load_balancer.instances.make_instance_healthy(instance_three)
 
