@@ -21,13 +21,15 @@ module AwsMissingTools
       end
 
       @max_size_change = 0
+      @time_spent_inservice = 0
     end
 
     def self.parse_options(arguments)
       options = {
         region: 'us-east-1',
         elb_timeout: 60,
-        inservice_time_allowed: 300
+        inservice_time_allowed: 300,
+        min_inservice_time: 30
       }
 
       OptionParser.new('Usage: aws-ha-release.rb -a <group name> [options]', 50) do |opts|
@@ -45,6 +47,10 @@ module AwsMissingTools
 
         opts.on('-i', '--inservice-time-allowed TIME', 'Time allowed for instance to come in service (seconds)') do |v|
           options[:inservice_time_allowed] = v.to_i
+        end
+
+        opts.on('-m', '--min-inservice-time TIME', 'Minimum time an instance must be in service before it is considered healthy (seconds)') do |v|
+          options[:min_inservice_time] = v.to_i
         end
 
         opts.on('-o', '--aws_access_key AWS_ACCESS_KEY', 'AWS Access Key') do |v|
@@ -92,7 +98,7 @@ module AwsMissingTools
         begin
           Timeout::timeout(@opts[:inservice_time_allowed]) do
 
-            until all_instances_inservice?(@group.load_balancers)
+            until all_instances_inservice_for_time_period?(@group.load_balancers, INSERVICE_POLLING_TIME)
               puts "#{time_taken} seconds have elapsed while waiting for an Instance to reach InService status."
 
               time_taken += INSERVICE_POLLING_TIME
@@ -162,6 +168,20 @@ module AwsMissingTools
       end
 
       true
+    end
+
+    def all_instances_inservice_for_time_period?(load_balancers, change_in_time)
+      if all_instances_inservice?(load_balancers)
+        if @time_spent_inservice >= @opts[:min_inservice_time]
+          return true
+        else
+          @time_spent_inservice += change_in_time
+          return false
+        end
+      else
+        @time_spent_inservice = 0
+        return false
+      end
     end
   end
 end

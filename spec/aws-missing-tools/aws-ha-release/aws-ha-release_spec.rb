@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe 'aws-ha-release' do
-  let(:opts) { %w(-a test_group -o testaccesskey -s testsecretkey -r test_region -i 1 -t 0) }
+  let(:opts) { %w(-a test_group -o testaccesskey -s testsecretkey -r test_region -i 1 -t 0 -m 5) }
 
   let(:as) { AWS::FakeAutoScaling.new }
 
@@ -44,6 +44,7 @@ describe 'aws-ha-release' do
       expect(options[:inservice_time_allowed]).not_to be_nil
       expect(options[:aws_access_key]).not_to be_nil
       expect(options[:aws_secret_key]).not_to be_nil
+      expect(options[:min_inservice_time]).not_to be_nil
     end
 
     context 'optional params' do
@@ -73,6 +74,12 @@ describe 'aws-ha-release' do
         expect(options[:aws_access_key]).to eq 'testkey'
         expect(options[:aws_secret_key]).to eq 'testsecretkey'
       end
+
+      it 'minimum inservice time' do
+        [%w(-a test_group -m 30), %w(-a test_group --min-inservice-time 30)].each do |options|
+          expect(AwsMissingTools::AwsHaRelease.parse_options(options)[:min_inservice_time]).to eq 30
+        end
+      end
     end
   end
 
@@ -80,6 +87,7 @@ describe 'aws-ha-release' do
     before do
       @group = as.groups.create opts[1]
       @aws_ha_release = AwsMissingTools::AwsHaRelease.new(opts)
+      @aws_ha_release.stub!(:all_instances_inservice_for_time_period?).and_return(true)
     end
 
     it 'suspends certain autoscaling processes' do
@@ -188,6 +196,31 @@ describe 'aws-ha-release' do
       load_balancer.instances.make_instance_healthy(instance_three)
 
       expect(@aws_ha_release.instances_inservice?(load_balancer)).to eq true
+    end
+
+    # ELB health checks seems to be reporting the EC2 health status for a short period of time before switching to the
+    # ELB check. This is a false positive and, until Amazon implements a fix, we must work around it
+    # see https://forums.aws.amazon.com/message.jspa?messageID=455646
+    it 'ensures that an instance has been in service for a period of time before considering it healthy' do
+      load_balancers = [
+        AWS::FakeELB::LoadBalancer.new('test_load_balancer_01', [
+          {
+            instance: instance_one,
+            healthy: true
+          },
+          {
+            instance: instance_two,
+            healthy: false
+          }
+        ])
+      ]
+
+      expect(@aws_ha_release.all_instances_inservice_for_time_period?(load_balancers, 5)).to eq false
+
+      load_balancers[0].instances.make_instance_healthy instance_two
+      expect(@aws_ha_release.all_instances_inservice_for_time_period?(load_balancers, 5)).to eq false
+
+      expect(@aws_ha_release.all_instances_inservice_for_time_period?(load_balancers, 5)).to eq true
     end
   end
 
