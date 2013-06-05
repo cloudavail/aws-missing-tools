@@ -91,7 +91,7 @@ module AwsMissingTools
 
       @group.update(desired_capacity: @group.desired_capacity + 1)
 
-      puts "The list of Instances in Auto Scaling Group #{@group.name} that will be terminated is:\n#{@group.ec2_instances.map(&:id)}"
+      puts "The list of instances in Auto Scaling Group #{@group.name} that will be terminated is:\n#{@group.auto_scaling_instances.map{ |i| i.ec2_instance.id }.to_ary}"
       @group.auto_scaling_instances.each do |instance|
         time_taken = 0
 
@@ -125,7 +125,7 @@ module AwsMissingTools
         puts "Sleeping for the ELB Timeout period of #{@opts[:elb_timeout]}"
         sleep @opts[:elb_timeout]
 
-        puts "Instance #{instance.id} will now be terminated. By terminating this instance, the actual capacity will be decreased to 1 under desired-capacity."
+        puts "\nInstance #{instance.id} will now be terminated. By terminating this instance, the actual capacity will be decreased to 1 under desired-capacity."
         instance.terminate false
       end
 
@@ -177,7 +177,7 @@ module AwsMissingTools
         if @time_spent_inservice >= @opts[:min_inservice_time]
           return true
         else
-          puts "\nAll instances have only been InService for #{@time_spent_inservice} seconds."
+          puts "\nAll instances have been InService for #{@time_spent_inservice} seconds."
 
           @time_spent_inservice += change_in_time
           return false
