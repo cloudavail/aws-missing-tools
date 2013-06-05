@@ -107,11 +107,6 @@ module AwsMissingTools
 
             puts "\nThe new instance was found to be healthy; one old instance will now be removed from the load balancers."
             deregister_instance instance.ec2_instance, @group.load_balancers
-            puts "Sleeping for the ELB Timeout period of #{@opts[:elb_timeout]}"
-            sleep @opts[:elb_timeout]
-
-            puts "Instance #{instance.id} will now be terminated. By terminating this instance, the actual capacity will be decreased to 1 under desired-capacity."
-            instance.terminate false
           end
         rescue Timeout::Error => e
           puts "\nDuring the last #{time_taken} seconds, a new AutoScaling instance failed to become healthy."
@@ -126,6 +121,12 @@ module AwsMissingTools
 
           raise
         end
+
+        puts "Sleeping for the ELB Timeout period of #{@opts[:elb_timeout]}"
+        sleep @opts[:elb_timeout]
+
+        puts "Instance #{instance.id} will now be terminated. By terminating this instance, the actual capacity will be decreased to 1 under desired-capacity."
+        instance.terminate false
       end
 
       puts "\n#{@group.name} had its desired-capacity increased temporarily by 1 to a desired-capacity of #{@group.desired_capacity}."
