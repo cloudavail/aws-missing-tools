@@ -54,6 +54,10 @@ module AWS
       def load_balancers
         @load_balancers ||= AWS::FakeELB::LoadBalancerCollection.new
       end
+
+      def ec2_instances
+        auto_scaling_instances.map(&:ec2_instance)
+      end
     end
 
     class Instance
@@ -70,6 +74,7 @@ module AWS
       end
 
       def ec2_instance
+        AWS::FakeEC2::Instance.new(self.id)
       end
     end
   end

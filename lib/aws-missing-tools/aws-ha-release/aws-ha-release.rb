@@ -91,7 +91,7 @@ module AwsMissingTools
 
       @group.update(desired_capacity: @group.desired_capacity + 1)
 
-      puts "The list of Instances in Auto Scaling Group #{@group.name} that will be terminated is:\n#{@group.auto_scaling_instances.map(&:id)}"
+      puts "The list of Instances in Auto Scaling Group #{@group.name} that will be terminated is:\n#{@group.ec2_instances.map(&:id)}"
       @group.auto_scaling_instances.each do |instance|
         time_taken = 0
 
@@ -99,7 +99,7 @@ module AwsMissingTools
           Timeout::timeout(@opts[:inservice_time_allowed]) do
 
             until all_instances_inservice_for_time_period?(@group.load_balancers, INSERVICE_POLLING_TIME)
-              puts "#{time_taken} seconds have elapsed while waiting for an Instance to reach InService status."
+              puts "#{time_taken} seconds have elapsed while waiting for all instances to be InService for a minimum of #{@opts[:min_inservice_time]} seconds."
 
               time_taken += INSERVICE_POLLING_TIME
               sleep INSERVICE_POLLING_TIME
@@ -107,6 +107,7 @@ module AwsMissingTools
 
             puts "\nThe new instance was found to be healthy; one old instance will now be removed from the load balancers."
             deregister_instance instance.ec2_instance, @group.load_balancers
+            puts "Sleeping for the ELB Timeout period of #{@opts[:elb_timeout]}"
             sleep @opts[:elb_timeout]
 
             puts "Instance #{instance.id} will now be terminated. By terminating this instance, the actual capacity will be decreased to 1 under desired-capacity."
@@ -153,7 +154,7 @@ module AwsMissingTools
 
       load_balancer.instances.health.each do |instance_health|
         unless instance_health[:state] == 'InService'
-          puts "Instance #{instance_health[:instance].id} is currently #{instance_health[:state]} on load balancer #{load_balancer.name}."
+          puts "\nInstance #{instance_health[:instance].id} is currently #{instance_health[:state]} on load balancer #{load_balancer.name}."
 
           return false
         end
@@ -175,6 +176,8 @@ module AwsMissingTools
         if @time_spent_inservice >= @opts[:min_inservice_time]
           return true
         else
+          puts "\nAll instances have only been InService for #{@time_spent_inservice} seconds."
+
           @time_spent_inservice += change_in_time
           return false
         end
