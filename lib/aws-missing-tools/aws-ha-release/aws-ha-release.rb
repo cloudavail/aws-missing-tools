@@ -9,6 +9,8 @@ module AwsMissingTools
     INSERVICE_POLLING_TIME = 10
 
     def initialize(argv)
+      STDOUT.sync = true
+
       @opts = AwsHaRelease.parse_options(argv)
 
       AWS.config(access_key_id: @opts[:aws_access_key], secret_access_key: @opts[:aws_secret_key], region: @opts[:region])
