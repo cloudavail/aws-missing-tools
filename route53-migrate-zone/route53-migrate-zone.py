@@ -10,6 +10,8 @@ import ConfigParser  # import ConfigParser - used for getting configuration
 import re  # import re used to find/replace zone
 import sys  # used to exit python program with exit code
 import os  # used to get app_name
+import logging  # used to write out log events - events that are neither required output nor error
+import argparse  # used to gather user input
 
 
 def commit_record_changeset(destination_zone_record_changeset):
@@ -19,6 +21,7 @@ def commit_record_changeset(destination_zone_record_changeset):
         sys.stdout.write("An error occured when attempting to commit records to the zone \"" + destination_zone_name + "\"\n")
         sys.stdout.write("The error message given was: " + error.error_message + ".\n")
         exit(69)
+
 
 def diff_record(record_a, record_a_object, record_b, record_b_object):
     compare_values = ["type", "ttl", "resource_records", "alias_hosted_zone_id", "alias_dns_name", "identifier", "weight", "region"]
@@ -30,8 +33,20 @@ def diff_record(record_a, record_a_object, record_b, record_b_object):
     return diff_record_result
 
 app_name = os.path.basename(__file__)
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--loglevel", help="set the log level when running route53-migrate-zone.")
+parser.add_argument("--config", help="choose the configuration file to be used when running route53-migrate-zone.", default='config.ini')
+args = parser.parse_args()
+
+log_level = str.upper(args.loglevel)
+if log_level is not None:
+    logging.basicConfig(level=log_level)
+
+config_file_path = args.config
 config = ConfigParser.ConfigParser()
-config.read('config.ini')
+config.read(config_file_path)
+
 #functions: currently supports newzone - the functions are set automatically by the route53-migrate-zone script
 functions = []
 
@@ -100,9 +115,9 @@ uncommitted_change_elements = 0
 for record in source_zone_records:
     if record.type in record_types_to_migrate:
         if "newzone" in functions:
-            #print "Existing Record Name: " + record.name
-            record.name = re.sub(source_zone_name, destination_zone_name, record.name)
-            #print "Modified Record Name: " + record.name
+            destination_record = re.sub(source_zone_name, destination_zone_name, record.name)
+            logging.info("Record \"" + record.name + "\" will be rewritten as \"" + destination_record + "\".")
+            record.name = destination_record
         #test if record exists in destination_zone
         if record.name in destination_zone_existing_resource_record_dict:
             existing_records_in_destination_zone_count += 1
@@ -110,10 +125,10 @@ for record in source_zone_records:
             diff_result = diff_record(record.name, record, record.name, destination_zone_existing_resource_record_dict)
             if diff_result is True:
                 different_records_in_destination_zone_count += 1
-                sys.stderr.write("Record \"" + record.name + "\" exists in source zone \"" + source_zone_name + "\" and destination zone \"" + destination_zone_name + "\" and is different.\n")
+                logging.info("Record \"" + record.name + "\" exists in source zone \"" + source_zone_name + "\" and destination zone \"" + destination_zone_name + "\" and is different.")
             elif diff_result is False:
                 identical_records_in_destination_zone_count += 1
-                sys.stderr.write("Record \"" + record.name + "\" exists in source zone \"" + source_zone_name + "\" and destination zone \"" + destination_zone_name + "\" and is identical.\n")
+                logging.info("Record \"" + record.name + "\" exists in source zone \"" + source_zone_name + "\" and destination zone \"" + destination_zone_name + "\" and is identical.")
             else:
                 sys.stderr.write("Diff of record " + record.name + " failed.\n")
                 exit(70)
@@ -124,15 +139,15 @@ for record in resource_record_dict:
     examined_record_count += 1
     #if record is an alias record we are not supporting yet
     if resource_record_dict[record].alias_dns_name is not None:
-        sys.stderr.write("Record \"" + resource_record_dict[record].name + "\" is an alias record set and will not be migrated. " + app_name + " does not currently support alias record sets.\n")
+        logging.info("Record \"" + resource_record_dict[record].name + "\" is an alias record set and will not be migrated. " + app_name + " does not currently support alias record sets.")
     else:
         uncommitted_change_elements += 1
         destination_zone_record_changeset.add_change_record("CREATE", resource_record_dict[record])
-    #DEBUG: print "Uncommitted Record Count:" + str(uncommitted_change_elements)
+    logging.debug("Uncommitted Record Count:" + str(uncommitted_change_elements))
     #if there are 99 uncomitted change elements than they must be committed - Amazon only accepts up to 99 change elements at a given time
     #if the number of examined records is equal to the number of records then we can commit as well - we are now done examing records
     if uncommitted_change_elements >= 99 or examined_record_count == len(resource_record_dict):
-        #DEBUG: print "Flushing Records:" + str(uncommitted_change_elements)
+        logging.info("Flushing Records:" + str(uncommitted_change_elements))
         commit_record_changeset(destination_zone_record_changeset)
         migrated_record_count += uncommitted_change_elements
         uncommitted_change_elements = 0

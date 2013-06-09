@@ -14,6 +14,10 @@ A config.ini file configured as follows will migrate olddomain.com to newdomain.
 * to_zone_name = destination.com.
 * to_zone_id = Z1U8DOWB9FJWOU
 
+## Additional Command Line Options
+* `route53-migrate-zone.py --log=INFO` - to see informational events
+* `route53-migrate-zone.py --config ./myconfig.ini` - to use the file myconfig.ini instead of the default config.ini file
+
 # Explanation of Summary Output:
 * Records Migrated from source zone: a count of the records that were migrated from source zone to destination zone
 * Record types selected for migration: a list of the record types selected for migration. An example: ['A', 'CNAME', 'MX', 'TXT']
