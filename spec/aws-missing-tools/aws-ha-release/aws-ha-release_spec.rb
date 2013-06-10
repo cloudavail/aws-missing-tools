@@ -123,24 +123,6 @@ describe 'aws-ha-release' do
       @aws_ha_release.group.should_receive(:update).with(desired_capacity: 1).ordered.and_call_original
       @aws_ha_release.execute!
     end
-
-    it 'cycles more than one instance at a time if specified' do
-      @group.update(max_size: 2, desired_capacity: 2)
-
-      aws_ha_release = AwsMissingTools::AwsHaRelease.new(%w(-a test_group --num-simultaneous-instances 2 -o testaccesskey -s testsecretkey -r test_region -i 1 -t 0 -m 5))
-      aws_ha_release.stub!(:all_instances_inservice_for_time_period?).and_return(true)
-
-      aws_ha_release.group.should_receive(:update).with(max_size: 4).ordered.and_call_original
-      aws_ha_release.group.should_receive(:update).with(desired_capacity: 4).ordered.and_call_original
-
-      aws_ha_release.should_receive(:deregister_instance).twice.ordered.and_call_original
-      @group.auto_scaling_instances[0].should_receive(:terminate).ordered.and_call_original
-      @group.auto_scaling_instances[1].should_receive(:terminate).ordered.and_call_original
-
-      aws_ha_release.group.should_receive(:update).with(desired_capacity: 2).ordered.and_call_original
-      aws_ha_release.group.should_receive(:update).with(max_size: 2).ordered.and_call_original
-      aws_ha_release.execute!
-    end
   end
 
   describe 'determining if instances are in service' do
@@ -287,6 +269,39 @@ describe 'aws-ha-release' do
 
       expect(elb_one.instances).not_to include instance_one
       expect(elb_two.instances).not_to include instance_one
+    end
+  end
+
+  describe '#determine_max_size_change' do
+    before do
+      @group = as.groups.create opts[1]
+    end
+
+    it 'does not change the desired capacity by default' do
+      @group.update(max_size: 4, desired_capacity: 2)
+      aws_ha_release = AwsMissingTools::AwsHaRelease.new(opts)
+
+      expect(aws_ha_release.determine_max_size_change).to eq 0
+    end
+
+    it 'adjusts the max size when it is equal to the desired capacity' do
+      @group.update(max_size: 2, desired_capacity: 2)
+      aws_ha_release = AwsMissingTools::AwsHaRelease.new(opts)
+
+      expect(aws_ha_release.determine_max_size_change).to eq 1
+    end
+
+    it 'accounts for num_simultaneous_instances' do
+      @group.update(max_size: 2, desired_capacity: 2)
+      aws_ha_release = AwsMissingTools::AwsHaRelease.new(%w(-a test_group --num-simultaneous-instances 2 -o testaccesskey -s testsecretkey -r test_region -i 1 -t 0 -m 5))
+
+      expect(aws_ha_release.determine_max_size_change).to eq 2
+
+      @group.update(max_size: 3, desired_capacity: 2)
+      expect(aws_ha_release.determine_max_size_change).to eq 1
+
+      @group.update(max_size: 4, desired_capacity: 2)
+      expect(aws_ha_release.determine_max_size_change).to eq 0
     end
   end
 end

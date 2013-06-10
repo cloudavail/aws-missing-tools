@@ -89,10 +89,10 @@ module AwsMissingTools
 
       @group.suspend_processes PROCESSES_TO_SUSPEND
 
-      if @group.max_size == @group.desired_capacity
-        puts "#{@group.name} has a max-size of #{@group.max_size}. In order to recycle instances max-size will be temporarily increased by #{@opts[:num_simultaneous_instances]}."
-        @group.update(max_size: @group.max_size + @opts[:num_simultaneous_instances])
-        @max_size_change = @opts[:num_simultaneous_instances]
+      @max_size_change = determine_max_size_change
+      if @max_size_change > 0
+        puts "#{@group.name} has a max-size of #{@group.max_size}. In order to recycle instances max-size will be temporarily increased by #{@max_size_change}."
+        @group.update(max_size: @group.max_size + @max_size_change)
       end
 
       @group.update(desired_capacity: @group.desired_capacity + @opts[:num_simultaneous_instances])
@@ -145,6 +145,14 @@ module AwsMissingTools
       end
 
       @group.resume_all_processes
+    end
+
+    def determine_max_size_change
+      if @group.max_size - @group.desired_capacity < @opts[:num_simultaneous_instances]
+        @group.desired_capacity + @opts[:num_simultaneous_instances] - @group.max_size
+      else
+        0
+      end
     end
 
     def deregister_instance(instance, load_balancers)
