@@ -97,32 +97,29 @@ module AwsMissingTools
       @group.auto_scaling_instances.each do |instance|
         time_taken = 0
 
-        begin
-          Timeout::timeout(@opts[:inservice_time_allowed]) do
+        until all_instances_inservice_for_time_period?(@group.load_balancers, INSERVICE_POLLING_TIME)
+          puts "#{time_taken} seconds have elapsed while waiting for all instances to be InService for a minimum of #{@opts[:min_inservice_time]} seconds."
 
-            until all_instances_inservice_for_time_period?(@group.load_balancers, INSERVICE_POLLING_TIME)
-              puts "#{time_taken} seconds have elapsed while waiting for all instances to be InService for a minimum of #{@opts[:min_inservice_time]} seconds."
+          if time_taken >= @opts[:inservice_time_allowed]
+            puts "\nDuring the last #{time_taken} seconds, a new AutoScaling instance failed to become healthy."
+            puts "The following settings were changed and will not be changed back by this script:\n"
 
-              time_taken += INSERVICE_POLLING_TIME
-              sleep INSERVICE_POLLING_TIME
+            puts "AutoScaling processes #{PROCESSES_TO_SUSPEND} were suspended."
+            puts "The desired capacity was changed from #{@group.desired_capacity - 1} to #{@group.desired_capacity}."
+
+            if @max_size_change > 0
+              puts "The maximum size was changed from #{@group.max_size - @max_size_change} to #{@group.max_size}"
             end
 
-            puts "\nThe new instance was found to be healthy; one old instance will now be removed from the load balancers."
-            deregister_instance instance.ec2_instance, @group.load_balancers
+            raise
+          else
+            time_taken += INSERVICE_POLLING_TIME
+            sleep INSERVICE_POLLING_TIME
           end
-        rescue Timeout::Error => e
-          puts "\nDuring the last #{time_taken} seconds, a new AutoScaling instance failed to become healthy."
-          puts "The following settings were changed and will not be changed back by this script:\n"
-
-          puts "AutoScaling processes #{PROCESSES_TO_SUSPEND} were suspended."
-          puts "The desired capacity was changed from #{@group.desired_capacity - 1} to #{@group.desired_capacity}."
-
-          if @max_size_change > 0
-            puts "The maximum size was changed from #{@group.max_size - @max_size_change} to #{@group.max_size}"
-          end
-
-          raise
         end
+
+        puts "\nThe new instance was found to be healthy; one old instance will now be removed from the load balancers."
+        deregister_instance instance.ec2_instance, @group.load_balancers
 
         puts "Sleeping for the ELB Timeout period of #{@opts[:elb_timeout]}"
         sleep @opts[:elb_timeout]
