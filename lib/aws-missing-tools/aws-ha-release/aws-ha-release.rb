@@ -1,4 +1,3 @@
-require 'timeout'
 require 'optparse'
 
 module AwsMissingTools
@@ -31,7 +30,8 @@ module AwsMissingTools
         region: 'us-east-1',
         elb_timeout: 60,
         inservice_time_allowed: 300,
-        min_inservice_time: 30
+        min_inservice_time: 30,
+        num_simultaneous_instances: 1
       }
 
       OptionParser.new('Usage: aws-ha-release.rb -a <group name> [options]', 50) do |opts|
@@ -62,6 +62,10 @@ module AwsMissingTools
         opts.on('-s', '--aws_secret_key AWS_SECRET_KEY', 'AWS Secret Key') do |v|
           options[:aws_secret_key] = v
         end
+
+        opts.on('-n', '--num-simultaneous-instances NUM', 'Number of instances to simultaneously bring up per iteration') do |v|
+          options[:num_simultaneous_instances] = v.to_i
+        end
       end.parse!(arguments)
 
       raise OptionParser::MissingArgument, 'You must specify the AutoScaling Group Name: aws-ha-release.rb -a <group name>' if options[:as_group_name].nil?
@@ -86,15 +90,15 @@ module AwsMissingTools
       @group.suspend_processes PROCESSES_TO_SUSPEND
 
       if @group.max_size == @group.desired_capacity
-        puts "#{@group.name} has a max-size of #{@group.max_size}. In order to recycle instances max-size will be temporarily increased by 1."
-        @group.update(max_size: @group.max_size + 1)
-        @max_size_change = 1
+        puts "#{@group.name} has a max-size of #{@group.max_size}. In order to recycle instances max-size will be temporarily increased by #{@opts[:num_simultaneous_instances]}."
+        @group.update(max_size: @group.max_size + @opts[:num_simultaneous_instances])
+        @max_size_change = @opts[:num_simultaneous_instances]
       end
 
-      @group.update(desired_capacity: @group.desired_capacity + 1)
+      @group.update(desired_capacity: @group.desired_capacity + @opts[:num_simultaneous_instances])
 
       puts "The list of instances in Auto Scaling Group #{@group.name} that will be terminated is:\n#{@group.auto_scaling_instances.map{ |i| i.ec2_instance.id }.to_ary}"
-      @group.auto_scaling_instances.each do |instance|
+      @group.auto_scaling_instances.each_slice(@opts[:num_simultaneous_instances]) do |instances|
         time_taken = 0
 
         until all_instances_inservice_for_time_period?(@group.load_balancers, INSERVICE_POLLING_TIME)
@@ -105,7 +109,7 @@ module AwsMissingTools
             puts "The following settings were changed and will not be changed back by this script:\n"
 
             puts "AutoScaling processes #{PROCESSES_TO_SUSPEND} were suspended."
-            puts "The desired capacity was changed from #{@group.desired_capacity - 1} to #{@group.desired_capacity}."
+            puts "The desired capacity was changed from #{@group.desired_capacity - @opts[:num_simultaneous_instances]} to #{@group.desired_capacity}."
 
             if @max_size_change > 0
               puts "The maximum size was changed from #{@group.max_size - @max_size_change} to #{@group.max_size}"
@@ -118,19 +122,19 @@ module AwsMissingTools
           end
         end
 
-        puts "\nThe new instance was found to be healthy; one old instance will now be removed from the load balancers."
-        deregister_instance instance.ec2_instance, @group.load_balancers
+        puts "\nThe new instance(s) was/were found to be healthy; #{@opts[:num_simultaneous_instances]} old instance(s) will now be removed from the load balancers."
+        instances.each { |instance| deregister_instance(instance.ec2_instance, @group.load_balancers) }
 
         puts "Sleeping for the ELB Timeout period of #{@opts[:elb_timeout]}"
         sleep @opts[:elb_timeout]
 
-        puts "\nInstance #{instance.id} will now be terminated. By terminating this instance, the actual capacity will be decreased to 1 under desired-capacity."
-        instance.terminate false
+        puts "\nInstance(s) #{instances.map{ |i| i.ec2_instance.id }.join(', ')} will now be terminated. By terminating this/these instance(s), the actual capacity will be decreased to #{@opts[:num_simultaneous_instances]} under desired-capacity."
+        instances.each { |instance| instance.terminate false }
       end
 
-      puts "\n#{@group.name} had its desired-capacity increased temporarily by 1 to a desired-capacity of #{@group.desired_capacity}."
-      puts "The desired-capacity of #{@group.name} will now be returned to its original desired-capacity of #{@group.desired_capacity - 1}."
-      @group.update(desired_capacity: @group.desired_capacity - 1)
+      puts "\n#{@group.name} had its desired-capacity increased temporarily by #{@opts[:num_simultaneous_instances]} to a desired-capacity of #{@group.desired_capacity}."
+      puts "The desired-capacity of #{@group.name} will now be returned to its original desired-capacity of #{@group.desired_capacity - @opts[:num_simultaneous_instances]}."
+      @group.update(desired_capacity: @group.desired_capacity - @opts[:num_simultaneous_instances])
 
       if @max_size_change > 0
         puts "\n#{@group.name} had its max_size increased temporarily by #{@max_size_change} to a max_size of #{@group.max_size}."

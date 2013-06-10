@@ -45,6 +45,7 @@ describe 'aws-ha-release' do
       expect(options[:aws_access_key]).not_to be_nil
       expect(options[:aws_secret_key]).not_to be_nil
       expect(options[:min_inservice_time]).not_to be_nil
+      expect(options[:num_simultaneous_instances]).not_to be_nil
     end
 
     context 'optional params' do
@@ -78,6 +79,12 @@ describe 'aws-ha-release' do
       it 'minimum inservice time' do
         [%w(-a test_group -m 30), %w(-a test_group --min-inservice-time 30)].each do |options|
           expect(AwsMissingTools::AwsHaRelease.parse_options(options)[:min_inservice_time]).to eq 30
+        end
+      end
+
+      it 'number of instances to simultaneously bring up' do
+        [%w(-a test_group -n 2), %w(-a test_group --num-simultaneous-instances 2)].each do |options|
+          expect(AwsMissingTools::AwsHaRelease.parse_options(options)[:num_simultaneous_instances]).to eq 2
         end
       end
     end
@@ -115,6 +122,24 @@ describe 'aws-ha-release' do
       @aws_ha_release.group.should_receive(:update).with(desired_capacity: 2).ordered.and_call_original
       @aws_ha_release.group.should_receive(:update).with(desired_capacity: 1).ordered.and_call_original
       @aws_ha_release.execute!
+    end
+
+    it 'cycles more than one instance at a time if specified' do
+      @group.update(max_size: 2, desired_capacity: 2)
+
+      aws_ha_release = AwsMissingTools::AwsHaRelease.new(%w(-a test_group --num-simultaneous-instances 2 -o testaccesskey -s testsecretkey -r test_region -i 1 -t 0 -m 5))
+      aws_ha_release.stub!(:all_instances_inservice_for_time_period?).and_return(true)
+
+      aws_ha_release.group.should_receive(:update).with(max_size: 4).ordered.and_call_original
+      aws_ha_release.group.should_receive(:update).with(desired_capacity: 4).ordered.and_call_original
+
+      aws_ha_release.should_receive(:deregister_instance).twice.ordered.and_call_original
+      @group.auto_scaling_instances[0].should_receive(:terminate).ordered.and_call_original
+      @group.auto_scaling_instances[1].should_receive(:terminate).ordered.and_call_original
+
+      aws_ha_release.group.should_receive(:update).with(desired_capacity: 2).ordered.and_call_original
+      aws_ha_release.group.should_receive(:update).with(max_size: 2).ordered.and_call_original
+      aws_ha_release.execute!
     end
   end
 
