@@ -39,8 +39,8 @@ parser.add_argument("--loglevel", help="set the log level when running route53-m
 parser.add_argument("--config", help="choose the configuration file to be used when running route53-migrate-zone.", default='config.ini')
 args = parser.parse_args()
 
-log_level = str.upper(args.loglevel)
-if log_level is not None:
+if args.loglevel is not None:
+    log_level = str.upper(args.loglevel)
     logging.basicConfig(level=log_level)
 
 config_file_path = args.config
