@@ -18,8 +18,8 @@ def commit_record_changeset(destination_zone_record_changeset):
     try:
         destination_zone_record_changeset.commit()
     except boto.route53.exception.DNSServerError, error:
-        sys.stdout.write("An error occured when attempting to commit records to the zone \"" + destination_zone_name + "\"\n")
-        sys.stdout.write("The error message given was: " + error.error_message + ".\n")
+        sys.stderr.write("An error occured when attempting to commit records to the zone \"" + destination_zone_name + "\"\n")
+        sys.stderr.write("The error message given was: " + error.error_message + ".\n")
         exit(69)
 
 
