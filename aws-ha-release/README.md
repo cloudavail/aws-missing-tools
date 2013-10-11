@@ -1,7 +1,7 @@
-# AWS HA Release
+# AWS HA Release, bash
 
 ## Introduction:
-aws-ha-release allows the high-availability / no downtime replacement of all EC2 Instances in an Auto Scaling Group that is behind an Elastic Load Balancer.
+aws-ha-release.sh is a bash script that allows the high-availability / no downtime replacement of all EC2 Instances in an Auto Scaling Group that is behind an Elastic Load Balancer. AWS HA Release also exists as a Ruby script and is recommended if use is possible.
 #
 ## Potential Use:
 Some potential uses for aws-ha-release are listed below:
@@ -28,6 +28,6 @@ aws-ha-release.sh requires the following option:
 
 # Additional Information:
 - Authors: Colin Johnson / colin@cloudavail.com, Anuj Biyani / abiyani@lytro.com
-- Date: 2013-05-30
+- Date: 2013-10-11
 - Version 0.0.1
 - License Type: GNU GENERAL PUBLIC LICENSE, Version 3
