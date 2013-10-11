@@ -1,5 +1,5 @@
 # Introduction:
-rds-apply-alarms was created to easily apply alarms to anywhere from one to a number of Amazon RDS instances. The tool applies alarms for CPU Utilization, Feeable Memory, Swap Usage and Free Storage Space. rds-apply-alarms will run "out of the box", however the intent is rather to provide a template (and the logic) for managing multiple RDS instance's alarms.
+rds-apply-alarms was created to easily apply alarms to one or more Amazon RDS instances. The tool applies alarms for CPU Utilization, Feeable Memory, Swap Usage and Free Storage Space. rds-apply-alarms will run "out of the box", however the intent is rather to provide a template (and the logic) for managing multiple RDS instance's alarms.
 # Directions For Use:
 ## Example of Use:
     rds-apply-alarms -d rds-instance-name -t name-of-sns-topic

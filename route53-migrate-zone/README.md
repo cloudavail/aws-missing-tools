@@ -1,5 +1,5 @@
 # Introduction:
-route53-migrate-zone was created to provide an easy method of migrating Route53 zones to new zones or to new AWS accounts. There are three use cases, detailed below:
+route53-migrate-zone was created to provide a method of migrating a Route53 zone to a new zone or to a new AWS account. There are three use cases, detailed below:
 * Migrate one domain (source.com) to a new domain (destintion.com)
 * Migrate one domain (domain.com) to the same domain in a new account (domain.com)
 * Migrate one domain (source.com) to a new domain in a new account (destination.com)

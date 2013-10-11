@@ -1,5 +1,5 @@
 # Introduction:
-as-apply-alarms was created to easily apply alarms to anywhere from one to a number of Amazon Auto Scaling Groups. The tool applies alarms for CPU Utilization. as-apply-alarms will run "out of the box" however the intent is rather to provide a template (and the logic) for managing multiple Auto Scaling Group's alarms.
+as-apply-alarms was created to easily apply alarms to one or more Auto Scaling Groups. The tool applies alarms for CPU Utilization. as-apply-alarms will run "out of the box" however the intent is rather to provide a template (and the logic) for managing multiple Auto Scaling Group's alarms.
 # Directions For Use:
 ## Example of Use:
     as-apply-alarms -d auto-scaling-group-name -t name-of-sns-topic

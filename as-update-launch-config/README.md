@@ -1,5 +1,5 @@
 # Introduction:
-as-update-launch-config was created to easily modify the EC2 Instance Type of an Auto Scaling Group's Launch Configuration File. The most typical use case is to change the size of instance used by an Auto Scaling Group, although as-update-launch-config can also be used to update the storage type, user-data or AMI used by a Launch Config (and hence, an Auto Scaling Group).
+as-update-launch-config was created to modify an Auto Scaling Group's Launch Configuration. The most typical use case is to change the size of instance used by an Auto Scaling Group, although as-update-launch-config can also be used to update the storage type, user-data or AMI used by a Launch Config (and hence, an Auto Scaling Group).
 # Directions For Use:
 ## Example of Use:
     as-update-launch-config -a my-scaling-group -i m1.small -u /home/cjohnson/web-server-user-data.txt

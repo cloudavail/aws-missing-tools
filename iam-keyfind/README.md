@@ -1,5 +1,5 @@
 # Introduction:
-iam-keyfind was created to either list all Access Keys used by IAM users or by finding a particular IAM key.
+iam-keyfind was created to either list all Access Keys belonging to IAM accounts or find a particular IAM key.
 # Directions For Use:
 ## Example of Use, List Mode:
     iam-keyfind.sh
