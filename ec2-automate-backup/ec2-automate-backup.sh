@@ -59,7 +59,6 @@ create_EBS_Snapshot_Tags()
 	#if $hostname_tag_create is true then append --tag InitiatingHost=`hostname -f` to the variable $snapshot_tags
 	if $hostname_tag_create
 		then
-		ec2_snapshot_resource_id=`echo "$ec2_create_snapshot_result" | cut -f 2`
 		snapshot_tags="$snapshot_tags --tag InitiatingHost='`hostname -f`'"
 	fi
 	#if $purge_after_days is true, then append $purge_after_date to the variable $snapshot_tags
