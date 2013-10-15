@@ -56,6 +56,12 @@ create_EBS_Snapshot_Tags()
 		ec2_snapshot_resource_id=`echo "$ec2_create_snapshot_result" | cut -f 2`
 		snapshot_tags="$snapshot_tags --tag Name=ec2ab_${ebs_selected}_$date_current"
 	fi
+	#if $hostname_tag_create is true then append --tag InitiatingHost=`hostname -f` to the variable $snapshot_tags
+	if $hostname_tag_create
+		then
+		ec2_snapshot_resource_id=`echo "$ec2_create_snapshot_result" | cut -f 2`
+		snapshot_tags="$snapshot_tags --tag InitiatingHost='`hostname -f`'"
+	fi
 	#if $purge_after_days is true, then append $purge_after_date to the variable $snapshot_tags
 	if [[ -n $purge_after_days ]]
 		then
@@ -156,6 +162,8 @@ date_binary=""
 
 #sets the "Name" tag set for a snapshot to false - using "Name" requires that ec2-create-tags be called in addition to ec2-create-snapshot
 name_tag_create=false
+#sets the "InitiatingHost" tag set for a snapshot to false
+hostname_tag_create=false
 #sets the user_tags feature to false - user_tag creates tags on snapshots - by default each snapshot is tagged with volume_id and current_data timestamp
 user_tags=false
 #sets the Purge Snapshot feature to false - this feature will eventually allow the removal of snapshots that have a "PurgeAfter" tag that is earlier than current date
@@ -171,6 +179,7 @@ while getopts :s:c:r:v:t:k:pnu opt
 			t) tag="$OPTARG";;
 			k) purge_after_days="$OPTARG";;
 			n) name_tag_create=true;;
+			h) hostname_tag_create=true;;
 			p) purge_snapshots=true;;
 			u) user_tags=true;;
 			*) echo "Error with Options Input. Cause of failure is most likely that an unsupported parameter was passed or a parameter was passed without a corresponding option." 1>&2 ; exit 64;;
