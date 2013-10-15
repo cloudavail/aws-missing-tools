@@ -169,7 +169,7 @@ user_tags=false
 #sets the Purge Snapshot feature to false - this feature will eventually allow the removal of snapshots that have a "PurgeAfter" tag that is earlier than current date
 purge_snapshots=false
 #handles options processing
-while getopts :s:c:r:v:t:k:pnu opt
+while getopts :s:c:r:v:t:k:pnhu opt
 	do
 		case $opt in
 			s) selection_method="$OPTARG";;
