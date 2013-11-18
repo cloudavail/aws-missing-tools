@@ -1,5 +1,5 @@
 # Introduction:
-ec2-modify-ebs-volume.py was created to modify an EBS volumes attached to a running instance. The typical use case would be to increase the size of the EBS root device or to change the volume type from standard to provisioned iops (note that provisioned iops is referred to as io1). The script follows the procedure detailed in http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-expand-volume.html. The script does not change the file system on the volume itself - this is left up to the user although some operating systems may automatically grow the file system to the size of a given volume.
+ec2-modify-ebs-volume.py was created to modify an EBS volumes attached to a running instance. The typical use case would be to increase the size of the EBS device or to change the volume type from standard to provisioned iops. The script follows the procedure detailed in http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-expand-volume.html. The script does not change the file system on the volume itself - this is left up to the user although some operating systems may automatically grow the file system to the size of a given volume.
 # Directions For Use:
 ## Examples of Use:
     ./ec2-modify-ebs-volume.py --instance-id i-6702f11d --volume-size 60
