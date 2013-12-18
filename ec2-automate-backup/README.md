@@ -25,7 +25,7 @@ ec2-automate-backup requires one of the following two parameters be provided:
 
 `-n` - tag snapshots "Name" tag as well as description
 
-`-d` - duplicate specified volume tag(s) to snapshot tag(s). For example, 'ec2-automate-backup.sh -v vol-6d6a0527 -d "Name¤Type"' would duplicate tag key Name and Type with there values from volume to snapshot. As you can see in the example the delimiter between keys is "¤". This function will not, at the moment, work if key or value contains a space.
+`-d <key>` - duplicate specified volume tag(s) to snapshot tag(s). For example, 'ec2-automate-backup.sh -v vol-6d6a0527 -d "Name¤Type"' would duplicate tag key Name and Type with there values from volume to snapshot. As you can see in the example the delimiter between keys is "¤". This function will not, at the moment, work if key or value contains a space.
 
 `-h` - tag snapshots "InitiatingHost" tag to specify which host ran the script
 
