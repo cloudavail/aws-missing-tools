@@ -25,6 +25,8 @@ ec2-automate-backup requires one of the following two parameters be provided:
 
 `-n` - tag snapshots "Name" tag as well as description
 
+`-d` - duplicate specified volume tag(s) to snapshot tag(s). For example, 'ec2-automate-backup.sh -v vol-6d6a0527 -d "Name¤Type"' would duplicate tag key Name and Type with there values from volume to snapshot. As you can see in the example the delimiter between keys is "¤". This function will not, at the moment, work if key or value contains a space.
+
 `-h` - tag snapshots "InitiatingHost" tag to specify which host ran the script
 
 `-k <purge_after_days>` - the period after which a snapshot can be purged. For example, running "ec2-automate-backup.sh -v "vol-6d6a0527 vol-636a0112" -k 31" would allow snapshots to be removed after 31 days. purge_after_days creates two tags for each volume that was backed up - a PurgeAllow tag which is set to PurgeAllow=true and a PurgeAfter tag which is set to the present day (in UTC) + the value provided by -k.

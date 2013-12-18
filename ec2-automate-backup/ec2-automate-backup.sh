@@ -43,6 +43,7 @@ get_EBS_List()
 		then echo -e "An error occured when running ec2-describe-volumes. The error returned is below:\n$ebs_backup_list_complete" 1>&2 ; exit 70
 	fi
 	ebs_backup_list=`echo "$ebs_backup_list_complete" | grep ^VOLUME | cut -f 2`
+	ebs_backup_list_tags_complete=`echo "$ebs_backup_list_complete" | grep ^TAG`
 	#code to right will output list of EBS volumes to be backed up: echo -e "Now outputting ebs_backup_list:\n$ebs_backup_list"
 }
 
@@ -73,11 +74,23 @@ create_EBS_Snapshot_Tags()
 		snapshot_tags="$snapshot_tags --tag Volume=${ebs_selected} --tag Created=$date_current"
 	fi
 
+	#if $tag_duplication is set, then duplicate specified volume tags to snapshot tags
+	if  [[ -n $tag_duplication ]]
+		then
+		ebs_selected_tags=`echo "$ebs_backup_list_tags_complete" | grep $ebs_selected`
+		IFS='¤' read -ra tags_for_duplication <<< "$tag_duplication"
+		for tag_key in "${tags_for_duplication[@]}"; do
+		  tag_value=`echo "$ebs_selected_tags" | grep "$tag_key" | cut -f 5`
+		  snapshot_tags="$snapshot_tags --tag '$tag_key=$tag_value'" #FIXME script can't handle spances in key or value
+		done
+	fi
+
 	#if $snapshot_tags is not zero length then set the tag on the snapshot using ec2-create-tags
 	if [[ -n $snapshot_tags ]]
 		then echo "Tagging Snapshot $ec2_snapshot_resource_id with the following Tags:"
 		ec2-create-tags $ec2_snapshot_resource_id --region $region $snapshot_tags
 	fi
+
 }
 
 date_binary_get()
@@ -168,7 +181,7 @@ user_tags=false
 #sets the Purge Snapshot feature to false - this feature will eventually allow the removal of snapshots that have a "PurgeAfter" tag that is earlier than current date
 purge_snapshots=false
 #handles options processing
-while getopts :s:c:r:v:t:k:pnhu opt
+while getopts :s:c:r:v:t:k:d:pnhu opt
 	do
 		case $opt in
 			s) selection_method="$OPTARG";;
@@ -177,6 +190,7 @@ while getopts :s:c:r:v:t:k:pnhu opt
 			v) volumeid="$OPTARG";;
 			t) tag="$OPTARG";;
 			k) purge_after_days="$OPTARG";;
+			d) tag_duplication="$OPTARG";;
 			n) name_tag_create=true;;
 			h) hostname_tag_create=true;;
 			p) purge_snapshots=true;;
