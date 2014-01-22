@@ -28,6 +28,22 @@ describe 'aws-ha-release' do
         AwsMissingTools::AwsHaRelease.new(opts)
       }.should raise_error
     end
+
+    context 'number of simultaneous instances' do
+      before do
+        as.groups.create opts[1]
+        opts.push('--num-simultaneous-instances')
+      end
+      it 'with MAX, sets the option to the number of active instances' do
+        opts.push('MAX')
+        expect(AwsMissingTools::AwsHaRelease.new(opts).instance_variable_get('@opts')[:num_simultaneous_instances]).to eq 2
+      end
+
+      it 'with an integer, sets the option to that integer' do
+        opts.push('1')
+        expect(AwsMissingTools::AwsHaRelease.new(opts).instance_variable_get('@opts')[:num_simultaneous_instances]).to eq 1
+      end
+    end
   end
 
   describe '#parse_options' do
@@ -82,9 +98,17 @@ describe 'aws-ha-release' do
         end
       end
 
-      it 'number of instances to simultaneously bring up' do
-        [%w(-a test_group -n 2), %w(-a test_group --num-simultaneous-instances 2)].each do |options|
-          expect(AwsMissingTools::AwsHaRelease.parse_options(options)[:num_simultaneous_instances]).to eq 2
+      context 'number of instances to simultaneously bring up' do
+        it 'recognizes integer inputs' do
+          [%w(-a test_group -n 2), %w(-a test_group --num-simultaneous-instances 2)].each do |options|
+            expect(AwsMissingTools::AwsHaRelease.parse_options(options)[:num_simultaneous_instances]).to eq '2'
+          end
+        end
+
+        it 'recognizes the MAX keyword' do
+          [%w(-a test_group -n MAX), %w(-a test_group --num-simultaneous-instances MAX)].each do |options|
+            expect(AwsMissingTools::AwsHaRelease.parse_options(options)[:num_simultaneous_instances]).to eq 'MAX'
+          end
         end
       end
     end

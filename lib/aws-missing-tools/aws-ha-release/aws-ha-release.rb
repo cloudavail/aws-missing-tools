@@ -21,6 +21,8 @@ module AwsMissingTools
         raise ArgumentError, "The Auto Scaling Group named #{@opts[:as_group_name]} does not exist in #{@opts[:region]}."
       end
 
+      @opts[:num_simultaneous_instances] = Integer(@opts[:num_simultaneous_instances]) rescue @group.auto_scaling_instances.count
+
       @max_size_change = 0
       @time_spent_inservice = 0
     end
@@ -64,7 +66,7 @@ module AwsMissingTools
         end
 
         opts.on('-n', '--num-simultaneous-instances NUM', 'Number of instances to simultaneously bring up per iteration') do |v|
-          options[:num_simultaneous_instances] = v.to_i
+          options[:num_simultaneous_instances] = v
         end
       end.parse!(arguments)
 
@@ -98,6 +100,7 @@ module AwsMissingTools
       @group.update(desired_capacity: @group.desired_capacity + @opts[:num_simultaneous_instances])
 
       puts "The list of instances in Auto Scaling Group #{@group.name} that will be terminated is:\n#{@group.auto_scaling_instances.map{ |i| i.ec2_instance.id }.to_ary}"
+      puts "The number of instances that will be brought up simultaneously is: #{@opts[:num_simultaneous_instances]}"
       @group.auto_scaling_instances.to_a.each_slice(@opts[:num_simultaneous_instances]) do |instances|
         time_taken = 0
 
