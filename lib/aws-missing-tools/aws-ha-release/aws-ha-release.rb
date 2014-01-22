@@ -98,7 +98,7 @@ module AwsMissingTools
       @group.update(desired_capacity: @group.desired_capacity + @opts[:num_simultaneous_instances])
 
       puts "The list of instances in Auto Scaling Group #{@group.name} that will be terminated is:\n#{@group.auto_scaling_instances.map{ |i| i.ec2_instance.id }.to_ary}"
-      @group.auto_scaling_instances.each_slice(@opts[:num_simultaneous_instances]) do |instances|
+      @group.auto_scaling_instances.to_a.each_slice(@opts[:num_simultaneous_instances]) do |instances|
         time_taken = 0
 
         until all_instances_inservice_for_time_period?(@group.load_balancers, INSERVICE_POLLING_TIME)
