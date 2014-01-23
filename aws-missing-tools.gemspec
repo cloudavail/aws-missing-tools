@@ -15,7 +15,7 @@ Gem::Specification.new do |gem|
   gem.require_paths = %w(lib)
   gem.version       = AwsMissingTools::VERSION
 
-  gem.add_dependency 'aws-sdk'
+  gem.add_dependency 'aws-sdk', '~> 1.11'
 
-  gem.add_development_dependency 'rspec'
+  gem.add_development_dependency 'rspec', '~> 2.12'
 end

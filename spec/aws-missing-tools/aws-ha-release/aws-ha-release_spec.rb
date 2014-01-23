@@ -28,6 +28,22 @@ describe 'aws-ha-release' do
         AwsMissingTools::AwsHaRelease.new(opts)
       }.should raise_error
     end
+
+    context 'number of simultaneous instances' do
+      before do
+        as.groups.create opts[1]
+        opts.push('--num-simultaneous-instances')
+      end
+      it 'with MAX, sets the option to the number of active instances' do
+        opts.push('MAX')
+        expect(AwsMissingTools::AwsHaRelease.new(opts).instance_variable_get('@opts')[:num_simultaneous_instances]).to eq 2
+      end
+
+      it 'with an integer, sets the option to that integer' do
+        opts.push('1')
+        expect(AwsMissingTools::AwsHaRelease.new(opts).instance_variable_get('@opts')[:num_simultaneous_instances]).to eq 1
+      end
+    end
   end
 
   describe '#parse_options' do
@@ -45,6 +61,7 @@ describe 'aws-ha-release' do
       expect(options[:aws_access_key]).not_to be_nil
       expect(options[:aws_secret_key]).not_to be_nil
       expect(options[:min_inservice_time]).not_to be_nil
+      expect(options[:num_simultaneous_instances]).not_to be_nil
     end
 
     context 'optional params' do
@@ -78,6 +95,20 @@ describe 'aws-ha-release' do
       it 'minimum inservice time' do
         [%w(-a test_group -m 30), %w(-a test_group --min-inservice-time 30)].each do |options|
           expect(AwsMissingTools::AwsHaRelease.parse_options(options)[:min_inservice_time]).to eq 30
+        end
+      end
+
+      context 'number of instances to simultaneously bring up' do
+        it 'recognizes integer inputs' do
+          [%w(-a test_group -n 2), %w(-a test_group --num-simultaneous-instances 2)].each do |options|
+            expect(AwsMissingTools::AwsHaRelease.parse_options(options)[:num_simultaneous_instances]).to eq '2'
+          end
+        end
+
+        it 'recognizes the MAX keyword' do
+          [%w(-a test_group -n MAX), %w(-a test_group --num-simultaneous-instances MAX)].each do |options|
+            expect(AwsMissingTools::AwsHaRelease.parse_options(options)[:num_simultaneous_instances]).to eq 'MAX'
+          end
         end
       end
     end
@@ -262,6 +293,39 @@ describe 'aws-ha-release' do
 
       expect(elb_one.instances).not_to include instance_one
       expect(elb_two.instances).not_to include instance_one
+    end
+  end
+
+  describe '#determine_max_size_change' do
+    before do
+      @group = as.groups.create opts[1]
+    end
+
+    it 'does not change the desired capacity by default' do
+      @group.update(max_size: 4, desired_capacity: 2)
+      aws_ha_release = AwsMissingTools::AwsHaRelease.new(opts)
+
+      expect(aws_ha_release.determine_max_size_change).to eq 0
+    end
+
+    it 'adjusts the max size when it is equal to the desired capacity' do
+      @group.update(max_size: 2, desired_capacity: 2)
+      aws_ha_release = AwsMissingTools::AwsHaRelease.new(opts)
+
+      expect(aws_ha_release.determine_max_size_change).to eq 1
+    end
+
+    it 'accounts for num_simultaneous_instances' do
+      @group.update(max_size: 2, desired_capacity: 2)
+      aws_ha_release = AwsMissingTools::AwsHaRelease.new(%w(-a test_group --num-simultaneous-instances 2 -o testaccesskey -s testsecretkey -r test_region -i 1 -t 0 -m 5))
+
+      expect(aws_ha_release.determine_max_size_change).to eq 2
+
+      @group.update(max_size: 3, desired_capacity: 2)
+      expect(aws_ha_release.determine_max_size_change).to eq 1
+
+      @group.update(max_size: 4, desired_capacity: 2)
+      expect(aws_ha_release.determine_max_size_change).to eq 0
     end
   end
 end

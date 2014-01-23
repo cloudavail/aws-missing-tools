@@ -48,7 +48,7 @@ module AWS
       end
 
       def auto_scaling_instances
-        @auto_scaling_instances ||= [AWS::FakeAutoScaling::Instance.new(self), AWS::FakeAutoScaling::Instance.new(self)]
+        @auto_scaling_instances ||= AWS::FakeCore::Data::List.new [AWS::FakeAutoScaling::Instance.new(self), AWS::FakeAutoScaling::Instance.new(self)]
       end
 
       def load_balancers

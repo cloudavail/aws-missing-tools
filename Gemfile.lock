@@ -2,7 +2,7 @@ PATH
   remote: .
   specs:
     aws-missing-tools (0.0.1)
-      aws-sdk
+      aws-sdk (~> 1.11)
 
 GEM
   remote: https://rubygems.org/
@@ -29,4 +29,4 @@ PLATFORMS
 
 DEPENDENCIES
   aws-missing-tools!
-  rspec
+  rspec (~> 2.12)
