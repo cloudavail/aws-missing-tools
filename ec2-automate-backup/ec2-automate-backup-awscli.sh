@@ -79,7 +79,7 @@ create_EBS_Snapshot_Tags()
 	if [[ -n $snapshot_tags ]]
 		then echo "Tagging Snapshot $ec2_snapshot_resource_id with the following Tags: $snapshot_tags"
 		tags_arugment="--tags $snapshot_tags"
-		aws_ec2_create_tag_result=`aws ec2 create-tags --resources $ec2_snapshot_resource_id --region $region $tags_arugment 2>&1`
+		aws_ec2_create_tag_result=`aws ec2 create-tags --resources $ec2_snapshot_resource_id --region $region $tags_arugment --output text 2>&1`
 	fi
 }
 
@@ -127,15 +127,15 @@ esac
 
 purge_EBS_Snapshots()
 {
-	#snapshot_tag_list is a string that contains all snapshots with either the key PurgeAllow set to true
-	snapshot_tag_list=`aws ec2 describe-tags --region $region --filters Name=resource-type,Values=snapshot Name=tag:PurgeAllow,Values=true`
+	#snapshot_tag_list is a string that contains all snapshots with either the key PurgeAllow set to true. grep ^SNAPSHOTS filters not needed return values
+	snapshot_tag_list=`aws ec2 describe-snapshots --region $region --filters Name=tag:PurgeAllow,Values=true --output text | grep ^SNAPSHOTS`
 	#snapshot_purge_allowed is a list of all snapshot_ids with PurgeAllow=true
-	snapshot_purge_allowed=`echo "$snapshot_tag_list" | grep '"ResourceId": ' | awk '{ print $2 }' | tr -d '",'`
+	snapshot_purge_allowed=`echo "$snapshot_tag_list" | cut -f 5`
 	
 	for snapshot_id_evaluated in $snapshot_purge_allowed
 	do
 		#gets the "PurgeAfter" date which is in UTC with YYYY-MM-DD format (or %Y-%m-%d)
-		purge_after_date=`aws ec2 describe-tags --region $region --filters Name=resource-id,Values=$snapshot_id_evaluated Name=key,Values=PurgeAfter | grep '"Value": ' | awk '{ print $2 }' | tr -d '",'`
+		purge_after_date=`aws ec2 describe-snapshots --region $region --snapshot-ids $snapshot_id_evaluated --output text | grep ^TAGS.*PurgeAfter | cut -f 3`
 		#if purge_after_date is not set then we have a problem. Need to alert user.
 		if [[ -z $purge_after_date ]]
 			#Alerts user to the fact that a Snapshot was found with PurgeAllow=true but with no PurgeAfter date.
@@ -148,7 +148,7 @@ purge_EBS_Snapshots()
 			if [[ $purge_after_date_epoch < $date_current_epoch ]]
 				then
 				echo "The snapshot \"$snapshot_id_evaluated\" with the Purge After date of $purge_after_date will be deleted."
-				aws ec2 delete-snapshot --region $region --snapshot-id $snapshot_id_evaluated
+				aws_ec2_delete_snapshot_result=`aws ec2 delete-snapshot --region $region --snapshot-id $snapshot_id_evaluated --output text 2>&1`
 			fi
 		fi
 	done
