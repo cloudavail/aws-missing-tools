@@ -1,4 +1,4 @@
-ec2ab_exec=/Temp/aws-missing-tools/ec2-automate-backup/ec2-automate-backup.sh
+ec2ab_exec=/Temp/aws-missing-tools/ec2-automate-backup/ec2-automate-backup-awscli.sh
 #create two volumes
 volume_1=`ec2-create-volume --size 2 GB --availability-zone us-east-1a`
 volume_2=`ec2-create-volume --size 2 GB --availability-zone us-east-1a`
@@ -9,6 +9,8 @@ volume_2_id=`echo "$volume_2" | cut -f 2`
 ec2-create-tags $volume_1_id --tag Backup=true
 #test backing up only volume with tag Backup=true
 $ec2ab_exec -s tag -t Backup=true
+# if testing ec2-automate-backup-awscli.sh
+# $ec2ab_exec -s tag -t Backup,Values=true
 #expected result - snapshot only taken of volume_1
 #
 #test backing up only EBS volume with IDs "x" and "y"

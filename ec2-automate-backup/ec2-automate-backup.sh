@@ -53,6 +53,7 @@ create_EBS_Snapshot_Tags()
 	#if $name_tag_create is true then append ec2ab_${ebs_selected}_$date_current to the variable $snapshot_tags
 	if $name_tag_create
 		then
+		# possible duplicate code ec2_snapshot_resource_id=`echo "$ec2_create_snapshot_result" | cut -f 2`
 		ec2_snapshot_resource_id=`echo "$ec2_create_snapshot_result" | cut -f 2`
 		snapshot_tags="$snapshot_tags --tag Name=ec2ab_${ebs_selected}_$date_current"
 	fi
@@ -152,13 +153,10 @@ purge_EBS_Snapshots()
 }
 
 app_name=`basename $0`
-
 #sets defaults
 selection_method="volumeid"
-
 #date_binary allows a user to set the "date" binary that is installed on their system and, therefore, the options that will be given to the date binary to perform date calculations
 date_binary=""
-
 #sets the "Name" tag set for a snapshot to false - using "Name" requires that ec2-create-tags be called in addition to ec2-create-snapshot
 name_tag_create=false
 #sets the "InitiatingHost" tag set for a snapshot to false
@@ -168,6 +166,7 @@ user_tags=false
 #sets the Purge Snapshot feature to false - this feature will eventually allow the removal of snapshots that have a "PurgeAfter" tag that is earlier than current date
 purge_snapshots=false
 #handles options processing
+
 while getopts :s:c:r:v:t:k:pnhu opt
 	do
 		case $opt in

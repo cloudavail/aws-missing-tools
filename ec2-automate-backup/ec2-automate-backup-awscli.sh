@@ -1,14 +1,15 @@
 #!/bin/bash -
 # Author: Colin Johnson / colin@cloudavail.com
-# Date: 2013-02-13
-# Version 0.9
+# Contributors: buckelij / https://github.com/buckelij
+# Date: 2014-03-02
+# Version 0.1
 # License Type: GNU GENERAL PUBLIC LICENSE, Version 3
 #
 
 #confirms that executables required for succesful script execution are available
 prerequisite_check()
 {
-	for prerequisite in basename aws date
+	for prerequisite in basename aws date cut
 	do
 		#use of "hash" chosen as it is a shell builtin and will add programs to hash table, possibly speeding execution. Use of type also considered - open to suggestions.
 		hash $prerequisite &> /dev/null
@@ -26,36 +27,35 @@ get_EBS_List()
 			if [[ -z $volumeid ]]
 				then echo "The selection method \"volumeid\" (which is $app_name's default selection_method of operation or requested by using the -s volumeid parameter) requires a volumeid (-v volumeid) for operation. Correct usage is as follows: \"-v vol-6d6a0527\",\"-s volumeid -v vol-6d6a0527\" or \"-v \"vol-6d6a0527 vol-636a0112\"\" if multiple volumes are to be selected." 1>&2 ; exit 64
 			fi
-			ebs_selection_string="$volumeid"
+			ebs_selection_string="--volume-ids $volumeid"
 			;;
 		tag) 
 			if [[ -z $tag ]]
-				then echo "The selected selection_method \"tag\" (-s tag) requires a valid tag (-t key=value) for operation. Correct usage is as follows: \"-s tag -t backup=true\" or \"-s tag -t Name=my_tag.\"" 1>&2 ; exit 64
+				then echo "The selected selection_method \"tag\" (-s tag) requires a valid tag (-t Backup,Values=true) for operation. Correct usage is as follows: \"-s tag -t Backup,Values=true.\"" 1>&2 ; exit 64
 			fi
-			ebs_selection_string="--filter $tag"
+			ebs_selection_string="--filters Name=tag:$tag"
 			;;
 		*) echo "If you specify a selection_method (-s selection_method) for selecting EBS volumes you must select either \"volumeid\" (-s volumeid) or \"tag\" (-s tag)." 1>&2 ; exit 64 ;;
 	esac
 	#creates a list of all ebs volumes that match the selection string from above
-	ebs_backup_list_complete=`aws ec2 describe-volumes --region $region $ebs_selection_string 2>&1`
+	ebs_backup_list_complete=`aws ec2 describe-volumes --region $region $ebs_selection_string --output text`
 	#takes the output of the previous command 
 	ebs_backup_list_result=`echo $?`
 	if [[ $ebs_backup_list_result -gt 0 ]]
 		then echo -e "An error occured when running ec2-describe-volumes. The error returned is below:\n$ebs_backup_list_complete" 1>&2 ; exit 70
 	fi
-	ebs_backup_list=`echo "$ebs_backup_list_complete" | grep '"VolumeId": ' | awk '{ print $2 }' | tr -d '",' | sort | uniq`
-echo $ebs_backup_list
+	#returns the list of EBS volumes that matched ebs_selection_string. grep ^VOLUMES is to remove lines that begin "TAGS	Backup"
+	ebs_backup_list=`echo "$ebs_backup_list_complete" | grep ^VOLUMES | cut -f 7`
 	#code to right will output list of EBS volumes to be backed up: echo -e "Now outputting ebs_backup_list:\n$ebs_backup_list"
 }
 
 create_EBS_Snapshot_Tags()
 {
 	#snapshot tags holds all tags that need to be applied to a given snapshot - by aggregating tags we ensure that ec2-create-tags is called only onece
-	snapshot_tags="--tags "
+	snapshot_tags=""
 	#if $name_tag_create is true then append ec2ab_${ebs_selected}_$date_current to the variable $snapshot_tags
 	if $name_tag_create
 		then
-		ec2_snapshot_resource_id=`echo "$ec2_create_snapshot_result" | grep SnapshotId | awk '{ print $2 }' | tr -d '",'`
 		snapshot_tags="$snapshot_tags Key=Name,Value=ec2ab_${ebs_selected}_$date_current"
 	fi
 	#if $hostname_tag_create is true then append --tag InitiatingHost=`hostname -f` to the variable $snapshot_tags
@@ -77,8 +77,9 @@ create_EBS_Snapshot_Tags()
 
 	#if $snapshot_tags is not zero length then set the tag on the snapshot using ec2-create-tags
 	if [[ -n $snapshot_tags ]]
-		then echo "Tagging Snapshot $ec2_snapshot_resource_id with the following Tags:"
-		aws ec2 create-tags --resources $ec2_snapshot_resource_id --region $region $snapshot_tags
+		then echo "Tagging Snapshot $ec2_snapshot_resource_id with the following Tags: $snapshot_tags"
+		tags_arugment="--tags $snapshot_tags"
+		aws_ec2_create_tag_result=`aws ec2 create-tags --resources $ec2_snapshot_resource_id --region $region $tags_arugment 2>&1`
 	fi
 }
 
@@ -154,13 +155,10 @@ purge_EBS_Snapshots()
 }
 
 app_name=`basename $0`
-
 #sets defaults
 selection_method="volumeid"
-
 #date_binary allows a user to set the "date" binary that is installed on their system and, therefore, the options that will be given to the date binary to perform date calculations
 date_binary=""
-
 #sets the "Name" tag set for a snapshot to false - using "Name" requires that ec2-create-tags be called in addition to ec2-create-snapshot
 name_tag_create=false
 #sets the "InitiatingHost" tag set for a snapshot to false
@@ -170,6 +168,7 @@ user_tags=false
 #sets the Purge Snapshot feature to false - this feature will eventually allow the removal of snapshots that have a "PurgeAfter" tag that is earlier than current date
 purge_snapshots=false
 #handles options processing
+
 while getopts :s:c:r:v:t:k:pnhu opt
 	do
 		case $opt in
@@ -230,11 +229,11 @@ get_EBS_List
 for ebs_selected in $ebs_backup_list
 do
 	ec2_snapshot_description="ec2ab_${ebs_selected}_$date_current"
-	ec2_create_snapshot_result=`aws ec2 create-snapshot --region $region --description $ec2_snapshot_description --volume-id $ebs_selected 2>&1`
+	ec2_create_snapshot_result=`aws ec2 create-snapshot --region $region --description $ec2_snapshot_description --volume-id $ebs_selected --output text 2>&1`
 	if [[ $? != 0 ]]
 		then echo -e "An error occured when running ec2-create-snapshot. The error returned is below:\n$ec2_create_snapshot_result" 1>&2 ; exit 70
 	else
-		ec2_snapshot_resource_id=`echo "$ec2_create_snapshot_result" | grep SnapshotId | awk '{ print $2 }' | tr -d '",'`
+		ec2_snapshot_resource_id=`echo "$ec2_create_snapshot_result" | cut -f 3`
 	fi	
 	create_EBS_Snapshot_Tags
 done
