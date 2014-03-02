@@ -1,4 +1,4 @@
-ec2ab_exec=/Temp/ec2-automate-backup.sh
+ec2ab_exec=/Temp/aws-missing-tools/ec2-automate-backup/ec2-automate-backup.sh
 #create two volumes
 volume_1=`ec2-create-volume --size 2 GB --availability-zone us-east-1a`
 volume_2=`ec2-create-volume --size 2 GB --availability-zone us-east-1a`
@@ -15,19 +15,19 @@ $ec2ab_exec -s tag -t Backup=true
 $ec2ab_exec -v "$volume_1_id $volume_2_id"
 #expected result - snapshot only taken of volume_1 and volume_2
 #
-#test backing up only EBS volume with IDs "x" and "y" and tagging them with "name"
+#test backing up only EBS volume with IDs "x" and "y" and tagging the snapshots with "name"
 $ec2ab_exec -v "$volume_1_id $volume_2_id" -n
 #expected result - snapshot only taken of volume_1 and volume_2 each with tag "name" set to ec2ab_$volume_id_$date_current
 #
-#test backing up only EBS volume with IDs "x" and "y" and tagging them with "user tags"
+#test backing up only EBS volume with IDs "x" and "y" and tagging the snapshots with "user tags"
 $ec2ab_exec -v "$volume_1_id $volume_2_id" -u
 #expected result - snapshot only taken of volume_1 and volume_2 each with tag "user tags" set to Volume=$ebs_selected and Created=$current_date
 #
-#test backing up only EBS volume with IDs "x" and "y" and tagging them with a tag "PurgeAfter=14"
+#test backing up only EBS volume with IDs "x" and "y" and tagging the snapshots with a tag "PurgeAfter=14"
 $ec2ab_exec -v "$volume_1_id $volume_2_id" -k 14
 #expected result - snapshot only taken of volume_1 and volume_2 each with tags "PurgeAfter=$date_current+14" and "PurgeAllow=true"
 #
-#test backing up only EBS volume with IDs "x" and "y" and tagging them with a tag "PurgeAfter=14"
+#test backing up only EBS volume with IDs "x" and "y", tagging the snapshots with a tags "PurgeAfter=14" and name
 $ec2ab_exec -v "$volume_1_id $volume_2_id" -k 14 -n
 #expected result - snapshot only taken of volume_1 and volume_2 each with tag "name" set to ec2ab_$volume_id_$date_current
 #
