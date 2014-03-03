@@ -1,13 +1,13 @@
 #!/bin/bash -
-# Author: Colin Johnson / colin@cloudavail.com
-# Date: 2013-02-13
-# Version 0.9
+# Author: Z
+# Date: 2013-05-02
+# Version 1.0
 # License Type: GNU GENERAL PUBLIC LICENSE, Version 3
 #
 #confirms that executables required for succesful script execution are available
 prerequisite_check()
 {
-	for prerequisite in basename ec2-create-snapshot ec2-create-tags ec2-describe-snapshots ec2-delete-snapshot date
+	for prerequisite in basename ec2-create-image ec2-create-tags ec2-describe-instances date
 	do
 		#use of "hash" chosen as it is a shell builtin and will add programs to hash table, possibly speeding execution. Use of type also considered - open to suggestions.
 		hash $prerequisite &> /dev/null
@@ -36,16 +36,17 @@ get_EBS_List()
 		*) echo "If you specify a selection_method (-s selection_method) for selecting EBS volumes you must select either \"volumeid\" (-s volumeid) or \"tag\" (-s tag)." 1>&2 ; exit 64 ;;
 	esac
 	#creates a list of all ebs volumes that match the selection string from above
-	ebs_backup_list_complete=`ec2-describe-volumes --show-empty-fields --region $region $ebs_selection_string 2>&1`
+	ebs_backup_list_complete=`ec2-describe-instances --region $region $ebs_selection_string 2>&1`
 	#takes the output of the previous command 
 	ebs_backup_list_result=`echo $?`
 	if [[ $ebs_backup_list_result -gt 0 ]]
 		then echo -e "An error occured when running ec2-describe-volumes. The error returned is below:\n$ebs_backup_list_complete" 1>&2 ; exit 70
 	fi
-	ebs_backup_list=`echo "$ebs_backup_list_complete" | grep ^VOLUME | cut -f 2`
-	#code to right will output list of EBS volumes to be backed up: echo -e "Now outputting ebs_backup_list:\n$ebs_backup_list"
+	ebs_backup_list=`echo "$ebs_backup_list_complete" | grep ^INSTANCE | cut -f 2`
 	ebs_backup_list_name=`echo "$ebs_backup_list_complete" | grep ^TAG | grep Name | cut -f 5`
-        ebs_backup_list_name_a=(${ebs_backup_list_name})
+	ebs_backup_list_name_a=(${ebs_backup_list_name})
+	#code to right will output list of EBS volumes to be backed up: 
+	echo -e "Now outputting ebs_backup_list:\n$ebs_backup_list"
 }
 
 create_EBS_Snapshot_Tags()
@@ -55,14 +56,8 @@ create_EBS_Snapshot_Tags()
 	#if $name_tag_create is true then append ec2ab_${ebs_selected}_$date_current to the variable $snapshot_tags
 	if $name_tag_create
 		then
-		# possible duplicate code ec2_snapshot_resource_id=`echo "$ec2_create_snapshot_result" | cut -f 2`
 		ec2_snapshot_resource_id=`echo "$ec2_create_snapshot_result" | cut -f 2`
 		snapshot_tags="$snapshot_tags --tag Name=ec2ab_${ebs_selected}_$date_current"
-	fi
-	#if $hostname_tag_create is true then append --tag InitiatingHost=`hostname -f` to the variable $snapshot_tags
-	if $hostname_tag_create
-		then
-		snapshot_tags="$snapshot_tags --tag InitiatingHost='`hostname -f`'"
 	fi
 	#if $purge_after_days is true, then append $purge_after_date to the variable $snapshot_tags
 	if [[ -n $purge_after_days ]]
@@ -128,7 +123,7 @@ esac
 purge_EBS_Snapshots()
 {
 	#snapshot_tag_list is a string that contains all snapshots with either the key PurgeAllow or PurgeAfter set
-	snapshot_tag_list=`ec2-describe-tags --show-empty-fields --region $region --filter resource-type=snapshot --filter key=PurgeAllow,PurgeAfter`
+	snapshot_tag_list=`ec2-describe-tags --show-empty-fields --region $region --filter resource-type=image --filter key=PurgeAllow,PurgeAfter`
 	#snapshot_purge_allowed is a list of all snapshot_ids with PurgeAllow=true
 	snapshot_purge_allowed=`echo "$snapshot_tag_list" | grep .*PurgeAllow'\s'true | cut -f 3`
 	
@@ -147,29 +142,32 @@ purge_EBS_Snapshots()
 			#perform compparison - if $purge_after_date_epoch is a lower number than $date_current_epoch than the PurgeAfter date is earlier than the current date - and the snapshot can be safely removed
 			if [[ $purge_after_date_epoch < $date_current_epoch ]]
 				then
-				echo "The snapshot \"$snapshot_id_evaluated\" with the Purge After date of $purge_after_date will be deleted."
-				ec2-delete-snapshot --region $region $snapshot_id_evaluated
+				echo "The ami \"$snapshot_id_evaluated\" with the Purge After date of $purge_after_date will be deleted."
+				image_snapshot=`ec2-describe-images --region $region $snapshot_id_evaluated | grep EBS | cut -f 5` 
+				echo "The snapshot \"$image_snapshot\" is with the current ami \"$snapshot_id_evaluated\" and will be deleted."
+				ec2-deregister --region $region $snapshot_id_evaluated
+				ec2-delete-snapshot --region $region $image_snapshot 
 			fi
 		fi
 	done
 }
 
 app_name=`basename $0`
+
 #sets defaults
 selection_method="volumeid"
+
 #date_binary allows a user to set the "date" binary that is installed on their system and, therefore, the options that will be given to the date binary to perform date calculations
 date_binary=""
+
 #sets the "Name" tag set for a snapshot to false - using "Name" requires that ec2-create-tags be called in addition to ec2-create-snapshot
 name_tag_create=false
-#sets the "InitiatingHost" tag set for a snapshot to false
-hostname_tag_create=false
 #sets the user_tags feature to false - user_tag creates tags on snapshots - by default each snapshot is tagged with volume_id and current_data timestamp
 user_tags=false
 #sets the Purge Snapshot feature to false - this feature will eventually allow the removal of snapshots that have a "PurgeAfter" tag that is earlier than current date
 purge_snapshots=false
 #handles options processing
-
-while getopts :s:c:r:v:t:k:pnhu opt
+while getopts :s:c:r:v:t:k:pnu opt
 	do
 		case $opt in
 			s) selection_method="$OPTARG";;
@@ -179,7 +177,6 @@ while getopts :s:c:r:v:t:k:pnhu opt
 			t) tag="$OPTARG";;
 			k) purge_after_days="$OPTARG";;
 			n) name_tag_create=true;;
-			h) hostname_tag_create=true;;
 			p) purge_snapshots=true;;
 			u) user_tags=true;;
 			*) echo "Error with Options Input. Cause of failure is most likely that an unsupported parameter was passed or a parameter was passed without a corresponding option." 1>&2 ; exit 64;;
@@ -211,6 +208,7 @@ prerequisite_check
 
 #sets date variable
 date_current=`date -u +%Y-%m-%d`
+time_current=`date -u +%k-%M-%S`
 #sets the PurgeAfter tag to the number of days that a snapshot should be retained
 if [[ -n $purge_after_days ]]
 	then
@@ -229,8 +227,11 @@ icount=0
 #the loop below is called once for each volume in $ebs_backup_list - the currently selected EBS volume is passed in as "ebs_selected"
 for ebs_selected in $ebs_backup_list
 do
+	ec2_snapshot_name_org="ec2ab-${ebs_backup_list_name_a[$icount]}-${ebs_selected}-$date_current-$time_current"
+	ec2_snapshot_name_a=${ec2_snapshot_name_org// /-}
+	ec2_snapshot_name=${ec2_snapshot_name_a//_/-}
 	ec2_snapshot_description="ec2ab_${ebs_backup_list_name_a[$icount]}_${ebs_selected}_$date_current"
-	ec2_create_snapshot_result=`ec2-create-snapshot --region $region -d $ec2_snapshot_description $ebs_selected 2>&1`
+	ec2_create_snapshot_result=`ec2-create-image --no-reboot --region $region -n $ec2_snapshot_name -d $ec2_snapshot_description $ebs_selected 2>&1`
 	if [[ $? != 0 ]]
 		then echo -e "An error occured when running ec2-create-snapshot. The error returned is below:\n$ec2_create_snapshot_result" 1>&2 ; exit 70
 	else
