@@ -128,12 +128,12 @@ purge_EBS_Snapshots()
 	#snapshot_tag_list is a string that contains all snapshots with either the key PurgeAllow or PurgeAfter set
 	snapshot_tag_list=`ec2-describe-tags --show-empty-fields --region $region --filter resource-type=snapshot --filter key=PurgeAllow,PurgeAfter`
 	#snapshot_purge_allowed is a list of all snapshot_ids with PurgeAllow=true
-	snapshot_purge_allowed=`echo "$snapshot_tag_list" | grep .*PurgeAllow'\s'true | cut -f 3`
+	snapshot_purge_allowed=`echo "$snapshot_tag_list" | grep -P ".*PurgeAllow\ttrue" | cut -f 3`
 	
 	for snapshot_id_evaluated in $snapshot_purge_allowed
 	do
 		#gets the "PurgeAfter" date which is in UTC with YYYY-MM-DD format (or %Y-%m-%d)
-		purge_after_date=`echo "$snapshot_tag_list" | grep .*$snapshot_id_evaluated'\s'PurgeAfter.* | cut -f 5`
+		purge_after_date=`echo "$snapshot_tag_list" | grep -P ".*$snapshot_id_evaluated\tPurgeAfter.*" | cut -f 5`
 		#if purge_after_date is not set then we have a problem. Need to alert user.
 		if [[ -z $purge_after_date ]]
 			#Alerts user to the fact that a Snapshot was found with PurgeAllow=true but with no PurgeAfter date.
