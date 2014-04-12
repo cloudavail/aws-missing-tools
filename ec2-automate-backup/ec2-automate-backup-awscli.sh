@@ -1,8 +1,8 @@
 #!/bin/bash -
 # Author: Colin Johnson / colin@cloudavail.com
 # Contributors: buckelij / https://github.com/buckelij
-# Date: 2014-03-02
-# Version 0.1
+# Date: 2014-04-12
+# Version 0.9
 # License Type: GNU GENERAL PUBLIC LICENSE, Version 3
 #
 
