@@ -6,10 +6,10 @@ ec2-automate-backup was created to provide easy backup/snapshot functionality fo
 * run ec2-automate-backup to snapshot all EBS volumes that contain the tag "Backup=true" (example: `"0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -s tag -t "Backup=true" > /home/ec2-user/ec2-automate-backup_`date +"%Y%m%d"`.log"`)
 
 # Installation Instructions:
-## ec2-automate-backup-awscli.sh (Recommended)
+### for ec2-automate-backup-awscli.sh (Recommended)
 ec2-automate-backup.sh requires AWS Command Line Interface tools be installed and properly configured. Instructions for installing this tool is available at http://aws.amazon.com/cli/.
 
-## for ec2-automate-backup.sh
+### for ec2-automate-backup.sh
 ec2-automate-backup.sh requires that the EC2 API Tools be installed and properly configured. Instructions for installing these tools is avaiable at http://docs.aws.amazon.com/AWSEC2/latest/CommandLineReference/set-up-ec2-cli-linux.html.
 
 # Directions For Use:
