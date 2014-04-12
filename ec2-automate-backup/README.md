@@ -49,13 +49,13 @@ The parameters are the same as ec2-automate-backup.sh with the exception of the 
 
 ## Example of use:
 
- ec2-automate-backup-awscli.sh -r us-east-1 -s tag -t 'Name=tag:Backup,Values=True' -k 31 -p -n
+ ec2-automate-backup-awscli.sh -r us-east-1 -s tag -t 'Backup,Values=True' -k 31 -p -n
 
 
 # Additional Information:
 the file "ec2ab - IAM User Required Permissions.json" contains the IAM permissions required to run ec2-automate-backup.sh in with the least permissions required as of 2012-11-21.
 
 - Author: Colin Johnson / colin@cloudavail.com
-- Date: 2013-02-17
-- Version 0.9
+- Date: 2014-04-12
+- Version 0.10
 - License Type: GNU GENERAL PUBLIC LICENSE, Version 3
