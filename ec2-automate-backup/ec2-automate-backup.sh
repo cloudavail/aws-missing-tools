@@ -16,7 +16,7 @@
 #confirms that executables required for succesful script execution are available
 prerequisite_check()
 {
-	for prerequisite in basename ec2-create-snapshot ec2-create-tags ec2-describe-snapshots ec2-delete-snapshot date
+	for prerequisite in basename cut date ec2-create-snapshot ec2-create-tags ec2-delete-snapshot ec2-describe-snapshots 
 	do
 		#use of "hash" chosen as it is a shell builtin and will add programs to hash table, possibly speeding execution. Use of type also considered - open to suggestions.
 		hash $prerequisite &> /dev/null
@@ -51,6 +51,7 @@ get_EBS_List()
 	if [[ $ebs_backup_list_result -gt 0 ]]
 		then echo -e "An error occured when running ec2-describe-volumes. The error returned is below:\n$ebs_backup_list_complete" 1>&2 ; exit 70
 	fi
+	#returns the list of EBS volumes that matched ebs_selection_string.
 	ebs_backup_list=`echo "$ebs_backup_list_complete" | grep ^VOLUME | cut -f 2`
 }
 
@@ -61,8 +62,6 @@ create_EBS_Snapshot_Tags()
 	#if $name_tag_create is true then append ec2ab_${ebs_selected}_$current_date to the variable $snapshot_tags
 	if $name_tag_create
 		then
-		# possible duplicate code ec2_snapshot_resource_id=`echo "$ec2_create_snapshot_result" | cut -f 2`
-		ec2_snapshot_resource_id=`echo "$ec2_create_snapshot_result" | cut -f 2`
 		snapshot_tags="$snapshot_tags --tag Name=ec2ab_${ebs_selected}_$current_date"
 	fi
 	#if $hostname_tag_create is true then append --tag InitiatingHost=`hostname -f` to the variable $snapshot_tags
@@ -84,7 +83,7 @@ create_EBS_Snapshot_Tags()
 
 	#if $snapshot_tags is not zero length then set the tag on the snapshot using ec2-create-tags
 	if [[ -n $snapshot_tags ]]
-		then echo "Tagging Snapshot $ec2_snapshot_resource_id with the following Tags:"
+		then echo "Tagging Snapshot $ec2_snapshot_resource_id with the following Tags: $snapshot_tags"
 		ec2-create-tags $ec2_snapshot_resource_id --region $region $snapshot_tags
 	fi
 }
@@ -123,24 +122,30 @@ esac
 
 purge_EBS_Snapshots()
 {
-	#snapshot_tag_list is a string that contains all snapshots with either the key PurgeAllow or PurgeAfterFE set
+	# snapshot_tag_list is a string containing any snapshot that contains
+	# either the key PurgeAllow or the key PurgeAfterFE
+	# note that filtering for *both* keys is a requirement or else the
+	# PurgeAfterFE key/value pair will not be returned
 	snapshot_tag_list=`ec2-describe-tags --show-empty-fields --region $region --filter resource-type=snapshot --filter key=PurgeAllow,PurgeAfterFE`
-	#snapshot_purge_allowed is a list of all snapshot_ids with PurgeAllow=true
+	# snapshot_purge_allowed is a string containing Snapshot IDs that are
+	# allowed to be purged
 	snapshot_purge_allowed=`echo "$snapshot_tag_list" | grep .*PurgeAllow'\s'true | cut -f 3`
 
 	for snapshot_id_evaluated in $snapshot_purge_allowed
 	do
 		#gets the "PurgeAfterFE" date which is in UTC with UNIX Time format (or xxxxxxxxxx / %s)
-		purge_after_date_fe_tag=`echo "$snapshot_tag_list" | grep .*$snapshot_id_evaluated'\s'PurgeAfterFE.* | cut -f 5`
+		purge_after_fe=`echo "$snapshot_tag_list" | grep .*$snapshot_id_evaluated'\s'PurgeAfterFE.* | cut -f 5`
 		#if purge_after_date is not set then we have a problem. Need to alert user.
-		if [[ -z $purge_after_date_fe_tag ]]
+		if [[ -z $purge_after_fe ]]
 			#Alerts user to the fact that a Snapshot was found with PurgeAllow=true but with no PurgeAfterFE date.
-			then echo "A Snapshot with the Snapshot ID $snapshot_id_evaluated has the tag \"PurgeAllow=true\" but does not have a \"PurgeAfterFE=xxxxxxxxxx\" date where PurgeAfterFE is UNIX time. $app_name is unable to determine if $snapshot_id_evaluated should be purged." 1>&2
+			then echo "A Snapshot with the Snapshot ID $snapshot_id_evaluated has the tag \"PurgeAllow=true\" but does not have a \"PurgeAfterFE=xxxxxxxxxx\" key/value pair. $app_name is unable to determine if $snapshot_id_evaluated should be purged." 1>&2
 		else
-			#perform comparison - if $purge_after_date_epoch is a lower number than $current_date_epoch than the PurgeAfterFE date is earlier than the current date - and the snapshot can be safely removed
-			if [[ $purge_after_date_fe_tag < $current_date ]]
+			# if $purge_after_fe is less than $current_date then
+			# PurgeAfterFE is earlier than the current date
+			# and the snapshot can be safely purged
+			if [[ $purge_after_fe < $current_date ]]
 				then
-				echo "The snapshot \"$snapshot_id_evaluated\" with the PurgeAfterFE date of $purge_after_date_fe_tag will be deleted."
+				echo "Snapshot \"$snapshot_id_evaluated\" with the PurgeAfterFE date of $purge_after_fe will be deleted."
 				ec2-delete-snapshot --region $region $snapshot_id_evaluated
 			fi
 		fi
@@ -158,7 +163,7 @@ name_tag_create=false
 hostname_tag_create=false
 #sets the user_tags feature to false - user_tag creates tags on snapshots - by default each snapshot is tagged with volume_id and current_date timestamp
 user_tags=false
-#sets the Purge Snapshot feature to false - this feature will eventually allow the removal of snapshots that have a "PurgeAfterFE" tag that is earlier than current date
+#sets the Purge Snapshot feature to false - if purge_snapshots=true then snapshots will be purged
 purge_snapshots=false
 #handles options processing
 
