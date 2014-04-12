@@ -238,7 +238,7 @@ def wait_aws_event(object_in, object_type, wait_for_string):
     logging.debug('wait_aws_event called.')
     # allowed_wait_time reflects the number of seconds a that wait_aws_event
     # will wait for a status or state change
-    allowed_wait_time = 300
+    allowed_wait_time = 900
 
     # determines the correct attribute to poll to determine the state/status
     # of an object. Instance resources/objects use 'state' while other
