@@ -120,6 +120,10 @@ purge_EBS_Snapshots() {
 
   for snapshot_id_evaluated in $snapshot_purge_allowed; do
     #gets the "PurgeAfterFE" date which is in UTC with UNIX Time format (or xxxxxxxxxx / %s)
+    # if running under CentOS 5 - note the use of "grep -P" in the comment below
+    # use of grep -P is not used because it breaks compatibility with OS X
+    # Mavericks
+    # snapshot_purge_allowed=$(echo "$snapshot_tag_list" | grep -P "^.*PurgeAllow\strue$" | cut -f 3)
     purge_after_fe=$(echo "$snapshot_tag_list" | grep .*$snapshot_id_evaluated'\s'PurgeAfterFE.* | cut -f 5)
     #if purge_after_date is not set then we have a problem. Need to alert user.
     if [[ -z $purge_after_fe ]]; then
