@@ -75,6 +75,11 @@ create_EBS_Snapshot_Tags()
 		snapshot_tags="$snapshot_tags Key=PurgeAfterFE,Value=$purge_after_date_fe Key=PurgeAllow,Value=true"
 	fi
 
+	if [[ -n $label ]]
+		then
+		snapshot_tags="$snapshot_tags Key=Name,Value=$label"
+	fi
+
 	#if $user_tags is true, then append Volume=$ebs_selected and Created=$current_date to the variable $snapshot_tags
 	if $user_tags
 		then
@@ -166,9 +171,10 @@ user_tags=false
 purge_snapshots=false
 #handles options processing
 
-while getopts :s:c:r:v:t:k:pnhu opt
+while getopts :l:s:c:r:v:t:k:pnhu opt
 	do
 		case $opt in
+			l) label="$OPTARG";;
 			s) selection_method="$OPTARG";;
 			c) cron_primer="$OPTARG";;
 			r) region="$OPTARG";;
