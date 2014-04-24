@@ -1,12 +1,12 @@
-ec2ab_exec="/Temp/ec2-automate-backup.sh"
+ec2ab_exec="../ec2-automate-backup-awscli.sh"
 
 #create two volumes
-volume_1=`ec2-create-volume --size 2 GB --availability-zone us-east-1a`
-volume_2=`ec2-create-volume --size 2 GB --availability-zone us-east-1a`
+volume_1=$(ec2-create-volume --size 2 GB --availability-zone us-east-1a)
+volume_2=$(ec2-create-volume --size 2 GB --availability-zone us-east-1a)
 
 #get volume id of both volumes
-volume_1_id=`echo "$volume_1" | cut -f 2`
-volume_2_id=`echo "$volume_2" | cut -f 2`
+volume_1_id=$(echo "$volume_1" | cut -f 2)
+volume_2_id=$(echo "$volume_2" | cut -f 2)
 
 #tag volume_1 with Backup=true
 ec2-create-tags $volume_1_id --tag Backup=true
@@ -32,30 +32,30 @@ $ec2ab_exec -v "$volume_1_id $volume_2_id" -u
 
 #test backing up only EBS volume with IDs "x" and "y" and tagging them with a tag "PurgeAfterFE=$current_date+604800"
 $ec2ab_exec -v "$volume_1_id $volume_2_id" -k 7
-echo "PurgeAfterFE=`date -v +604800S -u +%s`"
-echo "PurgeAfterFE=`date -d +604800sec -u +%s`"
+echo "PurgeAfterFE=$(date -v +604800S -u +%s)"
+echo "PurgeAfterFE=$(date -d +604800sec -u +%s)"
 #expected result - snapshot taken of volume_1 and volume_2 each with tags "PurgeAfterFE=$current_date+604800" and "PurgeAllow=true"
 
 #test backing up only EBS volume with IDs "x" and "y" and tagging them with a tag "PurgeAfterFE=$current_date+604800"
 $ec2ab_exec -v "$volume_1_id $volume_2_id" -k 7 -n
-echo "PurgeAfterFE=`date -v+604800S -u +%s`"
-echo "PurgeAfterFE=`date -d +604800sec -u +%s`"
+echo "PurgeAfterFE=$(date -v+604800S -u +%s)"
+echo "PurgeAfterFE=$(date -d +604800sec -u +%s)"
 #expected result - snapshot taken of volume_1 and volume_2 each with tag "name" set to ec2ab_$volume_id_$date_current a with a tag "PurgeAfterFE=$current_date+604800"
 
 #test backing up only EBS volume with IDs "x" and "y" and tagging them with a tag "PurgeAfterFE=$current_date+3600"
 $ec2ab_exec -v "$volume_1_id $volume_2_id" -k 1h -n
-echo "PurgeAfterFE=`date -v+3600S -u +%s`"
-echo "PurgeAfterFE=`date -d +3600sec -u +%s`"
+echo "PurgeAfterFE=$(date -v+3600S -u +%s)"
+echo "PurgeAfterFE=$(date -d +3600sec -u +%s)"
 #expected result - snapshot taken of volume_1 and volume_2 each with tag "name" set to ec2ab_$volume_id_$date_current a with a tag "PurgeAfterFE=$current_date+3600"
 
 #test backing up only EBS volume with IDs "x" and "y" and tagging them with a tag "PurgeAfterFE=$current_date+3600"
 $ec2ab_exec -v "$volume_1_id $volume_2_id" -k 30m -n
-echo "PurgeAfterFE=`date -v+1800S -u +%s`"
-echo "PurgeAfterFE=`date -d +1800sec -u +%s`"
+echo "PurgeAfterFE=$(date -v+1800S -u +%s)"
+echo "PurgeAfterFE=$(date -d +1800sec -u +%s)"
 #expected result - snapshot taken of volume_1 and volume_2 each with tag "name" set to ec2ab_$volume_id_$date_current a with a tag "PurgeAfterFE=$current_date+3600"
 
 #test backing up only EBS volume with IDs "x" and "y" and tagging them with a tag "PurgeAfterFE=$current_date+60" and purging snapshots
 $ec2ab_exec -v "$volume_1_id $volume_2_id" -k 1m -n -p
-echo "PurgeAfterFE=`date -v+60S -u +%s`"
-echo "PurgeAfterFE=`date -d +60sec -u +%s`"
+echo "PurgeAfterFE=$(date -v+60S -u +%s)"
+echo "PurgeAfterFE=$(date -d +60sec -u +%s)"
 #expected result - snapshot taken of volume_1 and volume_2 each with tag "name" set to ec2ab_$volume_id_$date_current a with a tag "PurgeAfterFE=$current_date+60" and if run twice after 60 seconds, volumes purged

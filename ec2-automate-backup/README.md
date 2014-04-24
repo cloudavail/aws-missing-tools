@@ -56,7 +56,7 @@ The parameters are the same as ec2-automate-backup.sh with the exception of the 
 
 ## Example of use:
 
- ec2-automate-backup-awscli.sh -r us-east-1 -s tag -t 'Backup,Values=True' -k 31 -p -n
+ ec2-automate-backup-awscli.sh -r us-east-1 -s tag -t 'Backup,Values=true' -k 31 -p -n
 
 
 # Additional Information:
