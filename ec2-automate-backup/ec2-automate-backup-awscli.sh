@@ -42,14 +42,12 @@ get_EBS_List() {
     *) echo "If you specify a selection_method (-s selection_method) for selecting EBS volumes you must select either \"volumeid\" (-s volumeid) or \"tag\" (-s tag)." 1>&2 ; exit 64 ;;
   esac
   #creates a list of all ebs volumes that match the selection string from above
-  ebs_backup_list_complete=$(aws ec2 describe-volumes --region $region $ebs_selection_string --output text)
+  ebs_backup_list=$(aws ec2 describe-volumes --region $region $ebs_selection_string --output text --query 'Volumes[*].VolumeId')
   #takes the output of the previous command 
   ebs_backup_list_result=$(echo $?)
   if [[ $ebs_backup_list_result -gt 0 ]]; then
     echo -e "An error occured when running ec2-describe-volumes. The error returned is below:\n$ebs_backup_list_complete" 1>&2 ; exit 70
   fi
-  #returns the list of EBS volumes that matched ebs_selection_string. grep ^VOLUMES is to remove lines that begin "TAGS  Backup"
-  ebs_backup_list=$(echo "$ebs_backup_list_complete" | grep ^VOLUMES | cut -f 8)
 }
 
 create_EBS_Snapshot_Tags() {
@@ -110,12 +108,9 @@ esac
 }
 
 purge_EBS_Snapshots() {
-  # snapshot_tag_list is a string containing any snapshot that contains a tag
-  # with the key value/pair PurgeAllow=true
-  snapshot_tag_list=$(aws ec2 describe-snapshots --region $region --filters Name=tag:PurgeAllow,Values=true --output text | grep ^SNAPSHOTS)
-  # snapshot_purge_allowed is a string containing Snapshot IDs that are
-  # allowed to be purged
-  snapshot_purge_allowed=$(echo "$snapshot_tag_list" | cut -f 7)
+  # snapshot_purge_allowed is a string containing the SnapshotIDs of snapshots
+  # that contain a tag with the key value/pair PurgeAllow=true
+  snapshot_purge_allowed=$(aws ec2 describe-snapshots --region $region --filters Name=tag:PurgeAllow,Values=true --output text --query 'Snapshots[*].SnapshotId')
   
   for snapshot_id_evaluated in $snapshot_purge_allowed; do
     #gets the "PurgeAfterFE" date which is in UTC with UNIX Time format (or xxxxxxxxxx / %s)
