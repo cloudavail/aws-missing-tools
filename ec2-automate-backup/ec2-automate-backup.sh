@@ -215,7 +215,7 @@ for ebs_selected in $ebs_backup_list; do
   ec2_snapshot_description="ec2ab_${ebs_selected}_$current_date"
   ec2_create_snapshot_result=$(ec2-create-snapshot --region $region -d $ec2_snapshot_description $ebs_selected 2>&1)
   if [[ $? != 0 ]]; then
-    echo -e "An error occured when running ec2-create-snapshot. The error returned is below:\n$ec2_create_snapshot_result" 1>&2 ; exit 70
+    echo -e "An error occurred when running ec2-create-snapshot. The error returned is below:\n$ec2_create_snapshot_result" 1>&2 ; exit 70
   else
     ec2_snapshot_resource_id=$(echo "$ec2_create_snapshot_result" | cut -f 2)
   fi
