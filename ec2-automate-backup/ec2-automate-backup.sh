@@ -46,7 +46,7 @@ get_EBS_List() {
   #takes the output of the previous command 
   ebs_backup_list_result=$(echo $?)
   if [[ $ebs_backup_list_result -gt 0 ]]; then
-    echo -e "An error occured when running ec2-describe-volumes. The error returned is below:\n$ebs_backup_list_complete" 1>&2 ; exit 70
+    echo -e "An error occurred when running ec2-describe-volumes. The error returned is below:\n$ebs_backup_list_complete" 1>&2 ; exit 70
   fi
   #returns the list of EBS volumes that matched ebs_selection_string.
   ebs_backup_list=$(echo "$ebs_backup_list_complete" | grep ^VOLUME | cut -f 2)
