@@ -46,7 +46,7 @@ get_EBS_List() {
   #takes the output of the previous command 
   ebs_backup_list_result=$(echo $?)
   if [[ $ebs_backup_list_result -gt 0 ]]; then
-    echo -e "An error occured when running ec2-describe-volumes. The error returned is below:\n$ebs_backup_list_complete" 1>&2 ; exit 70
+    echo -e "An error occurred when running ec2-describe-volumes. The error returned is below:\n$ebs_backup_list_complete" 1>&2 ; exit 70
   fi
   #returns the list of EBS volumes that matched ebs_selection_string.
   ebs_backup_list=$(echo "$ebs_backup_list_complete" | grep ^VOLUME | cut -f 2)
@@ -215,7 +215,7 @@ for ebs_selected in $ebs_backup_list; do
   ec2_snapshot_description="ec2ab_${ebs_selected}_$current_date"
   ec2_create_snapshot_result=$(ec2-create-snapshot --region $region -d $ec2_snapshot_description $ebs_selected 2>&1)
   if [[ $? != 0 ]]; then
-    echo -e "An error occured when running ec2-create-snapshot. The error returned is below:\n$ec2_create_snapshot_result" 1>&2 ; exit 70
+    echo -e "An error occurred when running ec2-create-snapshot. The error returned is below:\n$ec2_create_snapshot_result" 1>&2 ; exit 70
   else
     ec2_snapshot_resource_id=$(echo "$ec2_create_snapshot_result" | cut -f 2)
   fi
