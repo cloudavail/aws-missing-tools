@@ -26,6 +26,8 @@ ec2-automate-backup requires one of the following two parameters be provided:
 ## Optional Parameters:
 `-r <region>` - the region that contains the EBS volumes for which you wish to have a snapshot created.
 
+`-o <profile>` - the settings profile to use. 
+
 `-s <selection_method>` - the selection method by which EBS volumes will be selected. Currently supported selection methods are "volumeid" and "tag." The selection method "volumeid" identifies EBS volumes for which a snapshot should be taken by volume id whereas the selection method "tag" identifies EBS volumes for which a snapshot should be taken by a key=value format tag.
 
 `-c <cron_primer_file>` - running with the -c option and a providing a file will cause ec2-automate-backup to source a file for environmental configuration - ideal for running ec2-automate-backup under cron. An example cron primer file is located in the "Resources" directory and is called cron-primer.sh.
