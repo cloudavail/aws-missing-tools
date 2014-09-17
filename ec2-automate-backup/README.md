@@ -7,7 +7,7 @@ ec2-automate-backup was created to provide easy backup/snapshot functionality fo
 
 # Installation Instructions:
 ### for ec2-automate-backup-awscli.sh (Recommended)
-ec2-automate-backup.sh requires AWS Command Line Interface tools be installed and properly configured. Instructions for installing this tool is available at http://aws.amazon.com/cli/.
+ec2-automate-backup-awscli.sh requires AWS Command Line Interface tools be installed and properly configured. Instructions for installing this tool is available at http://aws.amazon.com/cli/.
 
 ### for ec2-automate-backup.sh
 ec2-automate-backup.sh requires that the EC2 API Tools be installed and properly configured. Instructions for installing these tools is avaiable at http://docs.aws.amazon.com/AWSEC2/latest/CommandLineReference/set-up-ec2-cli-linux.html.
