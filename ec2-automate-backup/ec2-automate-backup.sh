@@ -83,7 +83,8 @@ get_date_binary() {
   #$(uname) on OS X defaults to $(uname -s) and $(uname) on GNU/Linux defaults to $(uname -s)
   uname_result=$(uname)
   case $uname_result in
-    Darwin) date_binary="osx-posix" ;;
+    Darwin) date_binary="posix" ;;
+    FreeBSD) date_binary="posix" ;;
     Linux) date_binary="linux-gnu" ;;
     *) date_binary="unknown" ;;
   esac
@@ -103,7 +104,7 @@ esac
 #based on the date_binary variable, the case statement below will determine the method to use to determine "purge_after_days" in the future
 case $date_binary in
   linux-gnu) echo $(date -d +${purge_after_value_seconds}sec -u +%s) ;;
-  osx-posix) echo $(date -v +${purge_after_value_seconds}S -u +%s) ;;
+  posix) echo $(date -v +${purge_after_value_seconds}S -u +%s) ;;
   *) echo $(date -d +${purge_after_value_seconds}sec -u +%s) ;;
 esac
 }
