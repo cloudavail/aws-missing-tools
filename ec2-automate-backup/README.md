@@ -54,6 +54,10 @@ The script ec2-automate-backup-awscli.sh is a version of ec2-automate-backup.sh 
 
 The parameters are the same as ec2-automate-backup.sh with the exception of the tag filter, which must use the aws cli format.
 
+You can also specify the settings profile if you don't want to use the default one.
+
+`-o <profile>` - the settings profile to use. 
+
 ## Example of use:
 
  ec2-automate-backup-awscli.sh -r us-east-1 -s tag -t 'Backup,Values=true' -k 31 -p -n

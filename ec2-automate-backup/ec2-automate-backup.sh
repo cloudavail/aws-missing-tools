@@ -42,7 +42,7 @@ get_EBS_List() {
     *) echo "If you specify a selection_method (-s selection_method) for selecting EBS volumes you must select either \"volumeid\" (-s volumeid) or \"tag\" (-s tag)." 1>&2 ; exit 64 ;;
   esac
   #creates a list of all ebs volumes that match the selection string from above
-  ebs_backup_list_complete=$(ec2-describe-volumes --show-empty-fields --region $region $ebs_selection_string 2>&1)
+  ebs_backup_list_complete=$(ec2-describe-volumes --show-empty-fields $region_param $ebs_selection_string 2>&1)
   #takes the output of the previous command 
   ebs_backup_list_result=$(echo $?)
   if [[ $ebs_backup_list_result -gt 0 ]]; then
@@ -74,7 +74,7 @@ create_EBS_Snapshot_Tags() {
   #if $snapshot_tags is not zero length then set the tag on the snapshot using ec2-create-tags
   if [[ -n $snapshot_tags ]]; then
     echo "Tagging Snapshot $ec2_snapshot_resource_id with the following Tags: $snapshot_tags"
-    ec2-create-tags $ec2_snapshot_resource_id --region $region $snapshot_tags
+    ec2-create-tags $ec2_snapshot_resource_id $region_param $snapshot_tags
   fi
 }
 
@@ -114,7 +114,7 @@ purge_EBS_Snapshots() {
   # either the key PurgeAllow or the key PurgeAfterFE
   # note that filtering for *both* keys is a requirement or else the
   # PurgeAfterFE key/value pair will not be returned
-  snapshot_tag_list=$(ec2-describe-tags --show-empty-fields --region $region --filter resource-type=snapshot --filter key=PurgeAllow,PurgeAfterFE)
+  snapshot_tag_list=$(ec2-describe-tags --show-empty-fields $region_param --filter resource-type=snapshot --filter key=PurgeAllow,PurgeAfterFE)
   # snapshot_purge_allowed is a string containing Snapshot IDs that are
   # allowed to be purged
   snapshot_purge_allowed=$(echo "$snapshot_tag_list" | grep .*PurgeAllow'\s'true | cut -f 3)
@@ -136,7 +136,7 @@ purge_EBS_Snapshots() {
       # and the snapshot can be safely purged
       if [[ $purge_after_fe < $current_date ]]; then
         echo "Snapshot \"$snapshot_id_evaluated\" with the PurgeAfterFE date of \"$purge_after_fe\" will be deleted."
-        ec2-delete-snapshot --region $region $snapshot_id_evaluated
+        ec2-delete-snapshot $region_param $snapshot_id_evaluated
       fi
     fi
   done
@@ -184,12 +184,15 @@ fi
 
 #if region is not set then:
 if [[ -z $region ]]; then
-  #if the environment variable $EC2_REGION is not set set to us-east-1
+  #if the environment variable $EC2_REGION is not set, do not specify it so it uses the config file region
   if [[ -z $EC2_REGION ]]; then
-    region="us-east-1"
+    region_param=""
   else
-    region=$EC2_REGION
+    region_param="--region $EC2_REGION"
   fi
+#if it is set, we use it as is
+else
+  region_param="--region $region"
 fi
 
 #calls prerequisitecheck function to ensure that all executables required for script execution are available
@@ -214,7 +217,7 @@ get_EBS_List
 #the loop below is called once for each volume in $ebs_backup_list - the currently selected EBS volume is passed in as "ebs_selected"
 for ebs_selected in $ebs_backup_list; do
   ec2_snapshot_description="ec2ab_${ebs_selected}_$current_date"
-  ec2_create_snapshot_result=$(ec2-create-snapshot --region $region -d $ec2_snapshot_description $ebs_selected 2>&1)
+  ec2_create_snapshot_result=$(ec2-create-snapshot $region_param -d $ec2_snapshot_description $ebs_selected 2>&1)
   if [[ $? != 0 ]]; then
     echo -e "An error occurred when running ec2-create-snapshot. The error returned is below:\n$ec2_create_snapshot_result" 1>&2 ; exit 70
   else
