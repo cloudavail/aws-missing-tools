@@ -208,7 +208,7 @@ for ebs_selected in $ebs_backup_list; do
   if [[ $? != 0 ]]; then
     echo -e "An error occurred when running ec2-create-snapshot. The error returned is below:\n$ec2_create_snapshot_result" 1>&2 ; exit 70
   else
-    ec2_snapshot_resource_id=$(echo "$ec2_create_snapshot_result" | cut -f 3)
+    ec2_snapshot_resource_id=$(echo "$ec2_create_snapshot_result" | cut -f 4)
   fi  
   create_EBS_Snapshot_Tags
 done
