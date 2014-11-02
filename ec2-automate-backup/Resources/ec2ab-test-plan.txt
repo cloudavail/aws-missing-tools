@@ -1,15 +1,15 @@
-ec2ab_exec="../ec2-automate-backup-awscli.sh"
+ec2ab_exec="./ec2-automate-backup-awscli.sh"
 
 #create two volumes
-volume_1=$(ec2-create-volume --size 5 GB --availability-zone us-east-1c --type io1 --iops 100)
-volume_2=$(ec2-create-volume --size 2 GB --availability-zone us-east-1c)
+volume_1=$(ec2-create-volume --size 5 GB --availability-zone us-east-1b --type io1 --iops 100)
+volume_2=$(ec2-create-volume --size 2 GB --availability-zone us-east-1b)
 
 #get volume id of both volumes
 volume_1_id=$(echo "$volume_1" | cut -f 2)
 volume_2_id=$(echo "$volume_2" | cut -f 2)
 
 #tag volume_1 with Backup=true
-ec2-create-tags $volume_1_id --tag Backup=true
+aws ec2 create-tags --resources $volume_1_id --tag Key=Backup,Value=true
 
 #test backing up only volume with tag Backup=true
 # if testing ec2-automate-backup.sh
