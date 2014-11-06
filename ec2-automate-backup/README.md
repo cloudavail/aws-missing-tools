@@ -30,6 +30,8 @@ ec2-automate-backup requires one of the following two parameters be provided:
 
 `-c <cron_primer_file>` - running with the -c option and a providing a file will cause ec2-automate-backup to source a file for environmental configuration - ideal for running ec2-automate-backup under cron. An example cron primer file is located in the "Resources" directory and is called cron-primer.sh.
 
+`-l` - label a snapshot "Name" tag with a user-defined value
+
 `-n` - tag snapshots "Name" tag as well as description
 
 `-h` - tag snapshots "InitiatingHost" tag to specify which host ran the script
@@ -45,6 +47,8 @@ ec2-automate-backup requires one of the following two parameters be provided:
  - `0 0 1 * * ec2-user /home/ec2-user/ec2-automate-backup.sh -s tag -t "Backup-Monthly=true"`
 * To perform daily backup using cron and to load environment configuration with a "cron-primer" file:
  - `0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -c /home/ec2-user/cron-primer.sh -s tag -t "Backup=True"`
+* To perform a daily backup with cron and loading environment configuration with a user-defined label:
+ - `0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -c /home/ec2-user/cron-primer.sh -s tag -t "Backup=True" -l "Production Site Backup"`
 
 `-u` - the -u flag will tag snapshots with additional data so that snapshots can be more easily located. Currently the two user tags created are Volume="ebs_volume" and Created="date." These can be easily modified in code.
 

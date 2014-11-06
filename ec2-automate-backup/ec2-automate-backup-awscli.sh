@@ -50,31 +50,43 @@ get_EBS_List() {
   fi
 }
 
-create_EBS_Snapshot_Tags() {
-  #snapshot tags holds all tags that need to be applied to a given snapshot - by aggregating tags we ensure that ec2-create-tags is called only onece
-  snapshot_tags=""
-  #if $name_tag_create is true then append ec2ab_${ebs_selected}_$current_date to the variable $snapshot_tags
-  if $name_tag_create; then
-    snapshot_tags="$snapshot_tags Key=Name,Value=ec2ab_${ebs_selected}_$current_date"
-  fi
-  #if $hostname_tag_create is true then append --tag InitiatingHost=$(hostname -f) to the variable $snapshot_tags
-  if $hostname_tag_create; then
-    snapshot_tags="$snapshot_tags Key=InitiatingHost,Value='$(hostname -f)'"
-  fi
-  #if $purge_after_date_fe is true, then append $purge_after_date_fe to the variable $snapshot_tags
-  if [[ -n $purge_after_date_fe ]]; then
-    snapshot_tags="$snapshot_tags Key=PurgeAfterFE,Value=$purge_after_date_fe Key=PurgeAllow,Value=true"
-  fi
-  #if $user_tags is true, then append Volume=$ebs_selected and Created=$current_date to the variable $snapshot_tags
-  if $user_tags; then
-    snapshot_tags="$snapshot_tags Key=Volume,Value=${ebs_selected} Key=Created,Value=$current_date"
-  fi
-  #if $snapshot_tags is not zero length then set the tag on the snapshot using aws ec2 create-tags
-  if [[ -n $snapshot_tags ]]; then
-    echo "Tagging Snapshot $ec2_snapshot_resource_id with the following Tags: $snapshot_tags"
-    tags_argument="--tags $snapshot_tags"
-    aws_ec2_create_tag_result=$(aws ec2 create-tags --resources $ec2_snapshot_resource_id --region $region $tags_argument --output text 2>&1)
-  fi
+create_EBS_Snapshot_Tags()
+{
+	#snapshot tags holds all tags that need to be applied to a given snapshot - by aggregating tags we ensure that ec2-create-tags is called only onece
+	snapshot_tags=""
+	#if $name_tag_create is true then append ec2ab_${ebs_selected}_$current_date to the variable $snapshot_tags
+	if $name_tag_create
+		then
+		snapshot_tags="$snapshot_tags Key=Name,Value=ec2ab_${ebs_selected}_$current_date"
+	fi
+	#if $hostname_tag_create is true then append --tag InitiatingHost=`hostname -f` to the variable $snapshot_tags
+	if $hostname_tag_create
+		then
+		snapshot_tags="$snapshot_tags Key=InitiatingHost,Value='`hostname -f`'"
+	fi
+	#if $purge_after_date_fe is true, then append $purge_after_date_fe to the variable $snapshot_tags
+	if [[ -n $purge_after_date_fe ]]
+		then
+		snapshot_tags="$snapshot_tags Key=PurgeAfterFE,Value=$purge_after_date_fe Key=PurgeAllow,Value=true"
+	fi
+
+	if [[ -n $label ]]
+		then
+		snapshot_tags="$snapshot_tags Key=Name,Value=$label"
+	fi
+
+	#if $user_tags is true, then append Volume=$ebs_selected and Created=$current_date to the variable $snapshot_tags
+	if $user_tags
+		then
+		snapshot_tags="$snapshot_tags Key=Volume,Value=${ebs_selected} Key=Created,Value=$current_date"
+	fi
+
+	#if $snapshot_tags is not zero length then set the tag on the snapshot using aws ec2 create-tags
+	if [[ -n $snapshot_tags ]]
+		then echo "Tagging Snapshot $ec2_snapshot_resource_id with the following Tags: $snapshot_tags"
+		tags_arugment="--tags $snapshot_tags"
+		aws_ec2_create_tag_result=`aws ec2 create-tags --resources $ec2_snapshot_resource_id --region $region $tags_arugment --output text 2>&1`
+	fi
 }
 
 get_date_binary() {
@@ -147,21 +159,23 @@ user_tags=false
 purge_snapshots=false
 #handles options processing
 
-while getopts :s:c:r:v:t:k:pnhu opt; do
-  case $opt in
-    s) selection_method="$OPTARG" ;;
-    c) cron_primer="$OPTARG" ;;
-    r) region="$OPTARG" ;;
-    v) volumeid="$OPTARG" ;;
-    t) tag="$OPTARG" ;;
-    k) purge_after_input="$OPTARG" ;;
-    n) name_tag_create=true ;;
-    h) hostname_tag_create=true ;;
-    p) purge_snapshots=true ;;
-    u) user_tags=true ;;
-    *) echo "Error with Options Input. Cause of failure is most likely that an unsupported parameter was passed or a parameter was passed without a corresponding option." 1>&2 ; exit 64 ;;
-  esac
-done
+while getopts :l:s:c:r:v:t:k:pnhu opt
+	do
+		case $opt in
+			l) label="$OPTARG";;
+			s) selection_method="$OPTARG";;
+			c) cron_primer="$OPTARG";;
+			r) region="$OPTARG";;
+			v) volumeid="$OPTARG";;
+			t) tag="$OPTARG";;
+			k) purge_after_input="$OPTARG";;
+			n) name_tag_create=true;;
+			h) hostname_tag_create=true;;
+			p) purge_snapshots=true;;
+			u) user_tags=true;;
+			*) echo "Error with Options Input. Cause of failure is most likely that an unsupported parameter was passed or a parameter was passed without a corresponding option." 1>&2 ; exit 64;;
+		esac
+	done
 
 #sources "cron_primer" file for running under cron or other restricted environments - this file should contain the variables and environment configuration required for ec2-automate-backup to run correctly
 if [[ -n $cron_primer ]]; then
