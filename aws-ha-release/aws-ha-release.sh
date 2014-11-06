@@ -8,7 +8,7 @@
 #confirms that executables required for succesful script execution are available
 prerequisitecheck()
 {
-	for prerequisite in basename grep cut as-describe-auto-scaling-groups as-update-auto-scaling-group elb-deregister-instances-from-lb as-terminate-instance-in-auto-scaling-group elb-describe-instance-health
+	for prerequisite in basename grep cut aws
 	do
 		#use of "hash" chosen as it is a shell builtin and will add programs to hash table, possibly speeding execution. Use of type also considered - open to suggestions.
 		hash $prerequisite &> /dev/null
@@ -23,14 +23,14 @@ return_as_initial_maxsize()
 	if [[ $max_size_change -eq 1 ]]
 		then echo "$asg_group_name had its max-size increased temporarily by 1 to a max-size of $asg_temporary_max_size. $app_name will now return the max-size of $asg_group_name to its original max-size of $asg_initial_max_size."
 		#decrease max-size by 1
-		as-update-auto-scaling-group $asg_group_name --region $region --max-size=$asg_initial_max_size
+		aws autoscaling update-auto-scaling-group --auto-scaling-group-name $asg_group_name --region $region --max-size=$asg_initial_max_size
 	fi
 }
 
 return_as_initial_desiredcapacity()
 {
 	echo "$asg_group_name had its desired-capacity increased temporarily by 1 to a desired-capacity of $asg_temporary_desired_capacity. $app_name will now return the desired-capacity of $asg_group_name to its original desired-capacity of $asg_initial_desired_capacity."
-	as-update-auto-scaling-group $asg_group_name --region $region --desired-capacity=$asg_initial_desired_capacity
+	aws autoscaling update-auto-scaling-group --auto-scaling-group-name $asg_group_name --region $region --desired-capacity=$asg_initial_desired_capacity
 }
 
 #set application defaults
@@ -72,40 +72,36 @@ case $region in
 esac
 
 #creates variable containing Auto Scaling Group
-asg_result=`as-describe-auto-scaling-groups $asg_group_name --show-long --max-records 1000 --region $region --delimiter $delimiter`
+asg_result=`aws autoscaling describe-auto-scaling-groups --auto-scaling-group-name $asg_group_name --region $region`
 #validate Auto Scaling Group Exists
-#user response for Auto Scaling Group lookup - alerts user if Auto Scaling Group was not found.
-if [[ $asg_result = "No AutoScalingGroups found" ]]
-	then echo "The Auto Scaling Group named \"$asg_group_name\" does not exist in the region named \"$region\". You must specify an Auto Scaling Group that exists." 1>&2 ; exit 64
-fi
-#validate - the pipeline of echo -e "$asg_result" | grep -c "AUTO-SCALING-GROUP"  must only return one group found - in the case below - more than one group has been found
-if [[ `echo -e "$asg_result" | grep -c "^AUTO-SCALING-GROUP"` > 1  ]]
+#validate - the pipeline of echo -e "$asg_result" | grep -c "AutoScalingGroupARN"  must only return one group found - in the case below - more than one group has been found
+if [[ `echo -e "$asg_result" | grep -c "AutoScalingGroupARN"` > 1  ]]
 	then echo "More than one Auto Scaling Group found. As more than one Auto Scaling Group has been found, $app_name does not know which Auto Scaling Group should have Instances terminated." 1>&2 ; exit 64
 fi
-#validate - the pipeline of echo -e "$asg_result" | grep -c "AUTO-SCALING-GROUP"  must only return one group found
-if [[ `echo -e "$asg_result" | grep -c "^AUTO-SCALING-GROUP"` < 1 ]]
+#validate - the pipeline of echo -e "$asg_result" | grep -c "AutoScalingGroupARN"  must only return one group found
+if [[ `echo -e "$asg_result" | grep -c "AutoScalingGroupARN"` < 1 ]]
 	then echo "No Auto Scaling Group was found. Because no Auto Scaling Group has been found, $app_name does not know which Auto Scaling Group should have Instances terminated." 1>&2 ; exit 64
 fi
 #confirms that certain Auto Scaling processes are not suspended. For certain processes, the "Suspending Processing" state prevents the termination of Auto Scaling Group instances and thus prevents aws-ha-release from running properly.
 necessary_processes=(RemoveFromLoadBalancerLowPriority Terminate Launch HealthCheck AddToLoadBalancer)
 for process in "${necessary_processes[@]}"
 do
-	if [[ `echo -e "$asg_result" | grep -c "SUSPENDED-PROCESS$delimiter$process"` > 0 ]]
+	if [[ `echo -e "$asg_result" | grep -c "SuspensionReason"` > 0 ]]
 		then echo "Scaling Process $process for the Auto Scaling Group $asg_group_name is currently suspended. $app_name will now exit as Scaling Processes ${necessary_processes[@]} are required for $app_name to run properly." 1>&2 ; exit 77
 	fi
 done
 
 #gets Auto Scaling Group max-size
-asg_initial_max_size=`echo $asg_result | grep ^AUTO-SCALING-GROUP | cut -d "$delimiter" -f 9`
+asg_initial_max_size=`echo $asg_result | awk '/MaxSize/{ print $2 }' RS=,`
 asg_temporary_max_size=$(($asg_initial_max_size+1))
 #gets Auto Scaling Group desired-capacity
-asg_initial_desired_capacity=`echo "$asg_result" | grep ^AUTO-SCALING-GROUP | cut -d "$delimiter" -f 10`
+asg_initial_desired_capacity=`echo $asg_result | awk '/DesiredCapacity/{ print $2 }' RS=,`
 asg_temporary_desired_capacity=$((asg_initial_desired_capacity+1))
 #gets list of Auto Scaling Group Instances - these Instances will be terminated
-asg_instance_list=`echo "$asg_result" | grep ^INSTANCE | cut -d "$delimiter" -f 2`
+asg_instance_list=`echo "$asg_result" | grep InstanceId | sed 's/.*i-/i-/' | sed 's/",//'`
 
 #builds an array of load balancers
-IFS=',' read -a asg_elbs <<< `echo "$asg_result" | grep ^AUTO-SCALING-GROUP | cut -d "$delimiter" -f 6`
+asg_elbs=`aws autoscaling describe-auto-scaling-groups --auto-scaling-group-name $asg_group_name --region $region --output text | grep LOADBALANCERNAMES | sed "s/LOADBALANCERNAMES[[:space:]]//"`
 
 #if the max-size of the Auto Scaling Group is zero there is no reason to run
 if [[ $asg_initial_max_size -eq 0 ]]
@@ -114,21 +110,21 @@ fi
 #echo a list of Instances that are slated for termination
 echo -e "The list of Instances in Auto Scaling Group $asg_group_name that will be terminated is below:\n$asg_instance_list"
 
-as_processes_to_suspend="ReplaceUnhealthy,AlarmNotification,ScheduledActions,AZRebalance"
-as-suspend-processes $asg_group_name --processes $as_processes_to_suspend --region $region
+as_processes_to_suspend="ReplaceUnhealthy AlarmNotification ScheduledActions AZRebalance"
+aws autoscaling suspend-processes --auto-scaling-group-name $asg_group_name --scaling-processes $as_processes_to_suspend --region $region
 
 #if the desired-capacity of an Auto Scaling Group group is greater than or equal to the max-size of an Auto Scaling Group, the max-size must be increased by 1 to cycle instances while maintaining desired-capacity. This is particularly true of groups of 1 instance (where we'd be removing all instances if we cycled).
 if [[ $asg_initial_desired_capacity -ge $asg_initial_max_size ]]
 	then echo "$asg_group_name has a max-size of $asg_initial_max_size. In order to recycle instances max-size will be temporarily increased by 1 to max-size $asg_temporary_max_size."
 	#increase max-size by 1
-	as-update-auto-scaling-group $asg_group_name --region $region --max-size=$asg_temporary_max_size
+	aws autoscaling update-auto-scaling-group --auto-scaling-group-name $asg_group_name --region $region --max-size=$asg_temporary_max_size
 	#sets the flag that max-size has been changed
 	max_size_change="1"
 fi
 
 #increase groups desired capacity to allow for instance recycling without decreasing available instances below initial capacity
 echo "$asg_group_name is currently at $asg_initial_desired_capacity desired-capacity. $app_name will increase desired-capacity by 1 to desired-capacity $asg_temporary_desired_capacity."
-as-update-auto-scaling-group $asg_group_name --region $region --desired-capacity=$asg_temporary_desired_capacity
+aws autoscaling update-auto-scaling-group --auto-scaling-group-name $asg_group_name --region $region --desired-capacity=$asg_temporary_desired_capacity
 
 #and begin recycling instances
 for instance_selected in $asg_instance_list
@@ -154,7 +150,7 @@ do
 
 		for index in "${!asg_elbs[@]}"
 		do
-			inservice_instance_list=`elb-describe-instance-health ${asg_elbs[$index]} --region $region --show-long | grep InService`
+			inservice_instance_list=`aws elb describe-instance-health --load-balancer-name ${asg_elbs[$index]} --region $region --output text | grep InService`
 			inservice_instance_count=`echo "$inservice_instance_list" | wc -l`
 
 			if [ $index -eq 0 ]
@@ -181,14 +177,14 @@ do
 	echo "Instance $instance_selected will now be deregistered from ELBs \"${asg_elbs[@]}.\""
 	for elb in "${asg_elbs[@]}"
 	do
-		elb-deregister-instances-from-lb $elb --region $region --instances $instance_selected > /dev/null
+		aws elb deregister-instances-from-load-balancer --load-balancer-name $elb --region $region --instances $instance_selected > /dev/null
 	done
 
 	#sleep for "elb_timeout" seconds so that the instance can complete all processing before being terminated
 	sleep $elb_timeout
 	#terminates a pre-existing instance within the autoscaling group
 	echo "Instance $instance_selected will now be terminated. By terminating this Instance, the actual capacity will be decreased to 1 under desired-capacity."
-	as-terminate-instance-in-auto-scaling-group --region $region --instance $instance_selected --no-decrement-desired-capacity --force > /dev/null
+	aws autoscaling terminate-instance-in-auto-scaling-group --region $region --instance-id $instance_selected --no-should-decrement-desired-capacity > /dev/null
 done
 
 #return max-size to initial size
@@ -197,4 +193,4 @@ return_as_initial_maxsize
 #return temporary desired-capacity to initial desired-capacity
 return_as_initial_desiredcapacity
 
-as-resume-processes $asg_group_name --region $region
+aws autoscaling resume-processes --auto-scaling-group-name $asg_group_name --region $region
