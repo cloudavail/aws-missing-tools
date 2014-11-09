@@ -7,10 +7,10 @@ ec2-automate-backup was created to provide easy backup/snapshot functionality fo
 
 # Installation Instructions:
 ### for ec2-automate-backup-awscli.sh (Recommended)
-ec2-automate-backup-awscli.sh requires AWS Command Line Interface tools be installed and properly configured. Instructions for installing this tool is available at http://aws.amazon.com/cli/.
+ec2-automate-backup-awscli.sh requires AWS Command Line Interface tools be installed and properly configured. Instructions for installing this tool is available at https://aws.amazon.com/cli/.
 
 ### for ec2-automate-backup.sh
-ec2-automate-backup.sh requires that the EC2 API Tools be installed and properly configured. Instructions for installing these tools is avaiable at http://docs.aws.amazon.com/AWSEC2/latest/CommandLineReference/set-up-ec2-cli-linux.html.
+ec2-automate-backup.sh requires that the EC2 API Tools be installed and properly configured. Instructions for installing these tools is avaiable at https://docs.aws.amazon.com/AWSEC2/latest/CommandLineReference/set-up-ec2-cli-linux.html.
 
 # Directions For Use:
 ## Example of Use:
@@ -50,7 +50,7 @@ ec2-automate-backup requires one of the following two parameters be provided:
 
 # ec2-automate-backup-awscli.sh
 
-The script ec2-automate-backup-awscli.sh is a version of ec2-automate-backup.sh modified to use the aws cli tools http://aws.amazon.com/cli/
+The script ec2-automate-backup-awscli.sh is a version of ec2-automate-backup.sh modified to use the aws cli tools https://aws.amazon.com/cli/
 
 The parameters are the same as ec2-automate-backup.sh with the exception of the tag filter, which must use the aws cli format.
 
