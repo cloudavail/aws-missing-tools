@@ -10,7 +10,7 @@ export JAVA_HOME=/usr/lib/jvm/jre
 export PATH=/bin:/usr/bin:/opt/aws/bin/
 export AWS_ACCESS_KEY=<your_access_key>
 export AWS_SECRET_KEY=<your_secret_key>
-# AWS_CONFIG_FILE required for AWS Command Line Interface tools
+# AWS_CONFIG_FILE required for AWS Command Line Interface tools (f.e. ".aws")
 export AWS_CONFIG_FILE=<aws_config_filename>
 # the environment variables below (EC2_PRIVATE_KEY and EC2_CERT) are deprecated
 # as of the release of EC2 API Tools 1.6.0.0 - it is recommended that users
