@@ -39,12 +39,12 @@ ec2-automate-backup requires one of the following two parameters be provided:
 `-p` - the -p flag will purge (meaning delete) all snapshots that were created more than "purge after days" ago. ec2-automate-backup looks at two tags to determine which snapshots should be deleted - the PurgeAllow and PurgeAfter tags. The tags must be set as follows: PurgeAllow=true and PurgeAfter=YYYY-MM-DD where YYYY-MM-DD must be before the present date.
 # Potential Uses and Methods of Use:
 * To backup multiple EBS volumes use ec2-automate-backup as follows: `ec2-automate-backup -v "vol-6d6a0527 vol-636a0112"`
-* To backup a selected group of EBS volumes on a daily schedule tag each volume you wish to backup with the tag "Backup=true" and run ec2-automate-backup using cron as follows: `0 0 * * 0 ec2-automate-backup -s tag -t "Backup=true"`
+* To backup a selected group of EBS volumes on a daily schedule tag each volume you wish to backup with the tag "Backup=true" and run ec2-automate-backup using cron as follows: `0 0 * * * ec2-automate-backup -s tag -t "Backup=true"`
 * To backup a selected group of EBS volumes on a daily and/or monthly schedule tag each volume you wish to backup with the tag "Backup-Daily=true" and/or "Backup-Monthly=true" and run ec2-automate-backup using cron as follows:
- - `0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -s tag -t "Backup-Daily=true"`
+ - `0 0 * * * ec2-user /home/ec2-user/ec2-automate-backup.sh -s tag -t "Backup-Daily=true"`
  - `0 0 1 * * ec2-user /home/ec2-user/ec2-automate-backup.sh -s tag -t "Backup-Monthly=true"`
 * To perform daily backup using cron and to load environment configuration with a "cron-primer" file:
- - `0 0 * * 0 ec2-user /home/ec2-user/ec2-automate-backup.sh -c /home/ec2-user/cron-primer.sh -s tag -t "Backup=True"`
+ - `0 0 * * * ec2-user /home/ec2-user/ec2-automate-backup.sh -c /home/ec2-user/cron-primer.sh -s tag -t "Backup=True"`
 
 `-u` - the -u flag will tag snapshots with additional data so that snapshots can be more easily located. Currently the two user tags created are Volume="ebs_volume" and Created="date." These can be easily modified in code.
 
