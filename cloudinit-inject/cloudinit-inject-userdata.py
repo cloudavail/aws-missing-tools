@@ -17,7 +17,6 @@ def get_ec2_userdata(ec2_resourse_name, userdata_dir):
     #userdata_value is a list containing two items: the fn::join value and the value of the data to be added
     userdata_script = userdata_file.readlines()
     userdata = {unicode("Fn::Base64"): {unicode("Fn::Join"): userdata_script}}
-    print userdata
     return userdata
 
 
