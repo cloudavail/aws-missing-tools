@@ -170,7 +170,7 @@ for record in resource_record_dict:
         migrated_record_count += uncommitted_change_elements
         uncommitted_change_elements = 0
         destination_zone_record_changeset = None
-6
+
         destination_zone_record_changeset = boto.route53.record.ResourceRecordSets(destination_connection, destination_zone_id)
 
 logging.info('Summary:')
