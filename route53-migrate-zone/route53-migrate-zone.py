@@ -59,7 +59,7 @@ functions = []
 source_zone_access_key = config.get('source_zone_values', 'source_zone_access_key')
 source_zone_secret_key = config.get('source_zone_values', 'source_zone_secret_key')
 source_zone_name = config.get('source_zone_values', 'source_zone_name')
-# 
+
 destination_zone_access_key = config.get('destination_zone_values', 'destination_zone_access_key')
 destination_zone_secret_key = config.get('destination_zone_values', 'destination_zone_secret_key')
 destination_zone_name = config.get('destination_zone_values', 'destination_zone_name')
@@ -103,7 +103,7 @@ destination_zone_records = destination_zone.get_records()
 # resource_record_dict will be used to store all resource records that
 # should be transferred
 resource_record_dict = {}
-# destination_zone_existing_resource_record_dict will be used to store all 
+# destination_zone_existing_resource_record_dict will be used to store all
 # resource records that exist in destination zone
 destination_zone_existing_resource_record_dict = {}
 
@@ -129,8 +129,11 @@ for record in source_zone_records:
             logging.debug('Record "{record_name!s}" will be rewritten as "{destination_record!s}".'
                 .format(record_name=record.name, destination_record=destination_record))
             record.name = destination_record
-        # test if record exists in destination_zone
-        if record.name in destination_zone_existing_resource_record_dict:
+
+        # test if record exists in destination_zone and has same type
+        if (record.name in destination_zone_existing_resource_record_dict and
+           record.type == destination_zone_existing_resource_record_dict[record.name].type):
+
             existing_records_in_destination_zone_count += 1
             # compare records in source_domain and destination_domain, store result as diff_result
             diff_result = diff_record(record.name, record, record.name, destination_zone_existing_resource_record_dict)
@@ -147,17 +150,12 @@ for record in source_zone_records:
                     .format(record_name=record.name))
                 exit(70)
         else:
-            resource_record_dict[record.name] = boto.route53.record.Record(name=record.name, type=record.type, ttl=record.ttl, resource_records=record.resource_records, alias_hosted_zone_id=record.alias_hosted_zone_id, alias_dns_name=record.alias_dns_name, identifier=record.identifier, weight=record.weight, region=record.region)
+            resource_record_dict[record.name] = boto.route53.record.Record(name=record.name, type=record.type, ttl=record.ttl, resource_records=record.resource_records, alias_hosted_zone_id=record.alias_hosted_zone_id, alias_dns_name=record.alias_dns_name, identifier=record.identifier, weight=record.weight, region=record.region, alias_evaluate_target_health=record.alias_evaluate_target_health)
 
 for record in resource_record_dict:
     examined_record_count += 1
-    #if record is an alias record we are not supporting yet
-    if resource_record_dict[record].alias_dns_name is not None:
-        logging.info('Record {record_name!s} is an alias record set and will not be migrated {app_name!s} does not currently support alias record sets.'
-            .format(record_name=resource_record_dict[record].name, app_name=app_name))
-    else:
-        uncommitted_change_elements += 1
-        destination_zone_record_changeset.add_change_record("CREATE", resource_record_dict[record])
+    uncommitted_change_elements += 1
+    destination_zone_record_changeset.add_change_record("CREATE", resource_record_dict[record])
     logging.info('Uncommitted Record Count: {uncommitted_change_elements!s}'
         .format (uncommitted_change_elements=uncommitted_change_elements))
     # if there are 99 uncomitted change elements than they must be committed - Amazon only accepts up to 99 change elements at a given time
@@ -165,10 +163,14 @@ for record in resource_record_dict:
     if uncommitted_change_elements >= 99 or examined_record_count == len(resource_record_dict):
         logging.info('Flushing this Number of Uncommitted Records: {uncommitted_change_elements!s}'
             .format (uncommitted_change_elements=uncommitted_change_elements))
+
+        # Commit changes
         commit_record_changeset(destination_zone_record_changeset)
+
         migrated_record_count += uncommitted_change_elements
         uncommitted_change_elements = 0
         destination_zone_record_changeset = None
+
         destination_zone_record_changeset = boto.route53.record.ResourceRecordSets(destination_connection, destination_zone_id)
 
 logging.info('Summary:')
