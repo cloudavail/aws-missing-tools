@@ -4,10 +4,20 @@ module AwsMissingTools
       PROCESSES_TO_SUSPEND = %w(ReplaceUnhealthy AlarmNotification ScheduledActions AZRebalance)
       INSERVICE_POLLING_TIME = 10
 
-      def initialize(options, &block)
-        STDOUT.sync = true
+      attr_reader :logger
 
+      def initialize(options, &block)
         @opts = options_with_defaults options
+
+        if @opts[:log_output].is_a?(String)
+          output = File.open(@opts[:log_output], File::WRONLY | File::CREAT | File::TRUNC)
+          output.sync = true
+        else
+          # assume it's STDOUT or STDERR or similar
+          output = @opts[:log_output]
+        end
+        @logger = Logger.new(output)
+        @logger.level = @opts[:log_level]
 
         AWS.config(access_key_id: @opts[:aws_access_key], secret_access_key: @opts[:aws_secret_key], region: @opts[:region])
         @as = AWS::AutoScaling.new
@@ -28,7 +38,9 @@ module AwsMissingTools
           elb_timeout: 60,
           inservice_time_allowed: 300,
           min_inservice_time: 30,
-          num_simultaneous_instances: 1
+          num_simultaneous_instances: 1,
+          log_output: "log/#{options[:as_group_name]}_cycling.log",
+          log_level: Logger::WARN
         }.merge(options)
       end
 
@@ -42,29 +54,29 @@ module AwsMissingTools
         @group.suspend_processes PROCESSES_TO_SUSPEND
 
         if max_size_change > 0
-          puts "#{@group.name} has a max-size of #{@group.max_size}. In order to recycle instances max-size will be temporarily increased by #{max_size_change}."
+          logger.warn "#{@group.name} has a max-size of #{@group.max_size}. In order to recycle instances max-size will be temporarily increased by #{max_size_change}."
           @group.update(max_size: @group.max_size + max_size_change)
         end
 
         @group.update(desired_capacity: @group.desired_capacity + @opts[:num_simultaneous_instances])
 
-        puts "The list of instances in Auto Scaling Group #{@group.name} that will be terminated is:\n#{@group.auto_scaling_instances.map{ |i| i.ec2_instance.id }.to_ary}"
-        puts "The number of instances that will be brought up simultaneously is: #{@opts[:num_simultaneous_instances]}"
+        logger.info "The list of instances in Auto Scaling Group #{@group.name} that will be terminated is:#{@group.auto_scaling_instances.map{ |i| i.ec2_instance.id }.to_ary}"
+        logger.info "The number of instances that will be brought up simultaneously is: #{@opts[:num_simultaneous_instances]}"
         @group.auto_scaling_instances.to_a.each_slice(@opts[:num_simultaneous_instances]) do |instances|
           time_taken = 0
 
           until all_instances_inservice_for_time_period?
-            puts "#{time_taken} seconds have elapsed while waiting for all instances to be InService for a minimum of #{@opts[:min_inservice_time]} seconds."
+            logger.info "#{time_taken} seconds have elapsed while waiting for all instances to be InService for a minimum of #{@opts[:min_inservice_time]} seconds."
 
             if time_taken >= @opts[:inservice_time_allowed]
-              puts "\nDuring the last #{time_taken} seconds, a new AutoScaling instance failed to become healthy."
-              puts "The following settings were changed and will not be changed back by this script:\n"
+              logger.warn "During the last #{time_taken} seconds, a new AutoScaling instance failed to become healthy."
+              logger.warn "The following settings were changed and will not be changed back by this script:"
 
-              puts "AutoScaling processes #{PROCESSES_TO_SUSPEND} were suspended."
-              puts "The desired capacity was changed from #{@group.desired_capacity - @opts[:num_simultaneous_instances]} to #{@group.desired_capacity}."
+              logger.warn "AutoScaling processes #{PROCESSES_TO_SUSPEND} were suspended."
+              logger.warn "The desired capacity was changed from #{@group.desired_capacity - @opts[:num_simultaneous_instances]} to #{@group.desired_capacity}."
 
               if max_size_change > 0
-                puts "The maximum size was changed from #{@group.max_size - max_size_change} to #{@group.max_size}"
+                logger.warn "The maximum size was changed from #{@group.max_size - max_size_change} to #{@group.max_size}"
               end
 
               raise
@@ -74,27 +86,27 @@ module AwsMissingTools
             end
           end
 
-          puts "\nThe new instance(s) was/were found to be healthy."
+          logger.info "The new instance(s) was/were found to be healthy."
 
           if using_elb?
-            puts "#{@opts[:num_simultaneous_instances]} old instance(s) will now be removed from the load balancers."
+            logger.info "#{@opts[:num_simultaneous_instances]} old instance(s) will now be removed from the load balancers."
             instances.each { |instance| deregister_instance(instance.ec2_instance, @group.load_balancers) }
 
-            puts "Sleeping for the ELB Timeout period of #{@opts[:elb_timeout]}"
+            logger.info "Sleeping for the ELB Timeout period of #{@opts[:elb_timeout]}"
             sleep @opts[:elb_timeout]
           end
 
-          puts "\nInstance(s) #{instances.map{ |i| i.ec2_instance.id }.join(', ')} will now be terminated. By terminating this/these instance(s), the actual capacity will be decreased to #{@opts[:num_simultaneous_instances]} under desired-capacity."
+          logger.info "Instance(s) #{instances.map{ |i| i.ec2_instance.id }.join(', ')} will now be terminated. By terminating this/these instance(s), the actual capacity will be decreased to #{@opts[:num_simultaneous_instances]} under desired-capacity."
           instances.each { |instance| instance.terminate false }
         end
 
-        puts "\n#{@group.name} had its desired-capacity increased temporarily by #{@opts[:num_simultaneous_instances]} to a desired-capacity of #{@group.desired_capacity}."
-        puts "The desired-capacity of #{@group.name} will now be returned to its original desired-capacity of #{@group.desired_capacity - @opts[:num_simultaneous_instances]}."
+        logger.info "#{@group.name} had its desired-capacity increased temporarily by #{@opts[:num_simultaneous_instances]} to a desired-capacity of #{@group.desired_capacity}."
+        logger.info "The desired-capacity of #{@group.name} will now be returned to its original desired-capacity of #{@group.desired_capacity - @opts[:num_simultaneous_instances]}."
         @group.update(desired_capacity: @group.desired_capacity - @opts[:num_simultaneous_instances])
 
         if max_size_change > 0
-          puts "\n#{@group.name} had its max_size increased temporarily by #{max_size_change} to a max_size of #{@group.max_size}."
-          puts "The max_size of #{@group.name} will now be returned to its original max_size of #{@group.max_size - max_size_change}."
+          logger.warn "#{@group.name} had its max_size increased temporarily by #{max_size_change} to a max_size of #{@group.max_size}."
+          logger.warn "The max_size of #{@group.name} will now be returned to its original max_size of #{@group.max_size - max_size_change}."
 
           @group.update(max_size: @group.max_size - max_size_change)
         end
@@ -123,7 +135,7 @@ module AwsMissingTools
 
         load_balancer.instances.health.each do |instance_health|
           unless instance_health[:state] == 'InService'
-            puts "\nInstance #{instance_health[:instance].id} is currently #{instance_health[:state]} on load balancer #{load_balancer.name}."
+            logger.info "Instance #{instance_health[:instance].id} is currently #{instance_health[:state]} on load balancer #{load_balancer.name}."
 
             return false
           end
@@ -149,7 +161,7 @@ module AwsMissingTools
           if @time_spent_inservice >= @opts[:min_inservice_time]
             return true
           else
-            puts "\nAll instances have been InService for #{@time_spent_inservice} seconds."
+            logger.info "All instances have been InService for #{@time_spent_inservice} seconds."
 
             @time_spent_inservice += INSERVICE_POLLING_TIME
             return false
