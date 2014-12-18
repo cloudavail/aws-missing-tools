@@ -29,6 +29,8 @@ module AwsMissingTools
         allow(logfile).to receive(:sync=)
 
         allow(Logger).to receive(:new).and_return(Logger.new('/dev/null'))
+
+        allow_any_instance_of(CycleServers).to receive(:sleep)
       end
     
       describe '#initialize' do
@@ -95,6 +97,14 @@ module AwsMissingTools
         it 'only adjusts the desired capacity if max size does not equal desired capacity' do
           expect(group).to receive(:update).with(desired_capacity: 2).ordered.and_call_original
           expect(group).to receive(:update).with(desired_capacity: 1).ordered.and_call_original
+          cycle_servers.cycle
+        end
+
+        it 'does not deregister instances if cycling with a custom health check' do
+          custom_health_check = -> { true }
+          cycle_servers = CycleServers.new(opts, &custom_health_check)
+
+          expect(cycle_servers).not_to receive(:deregister_instance)
           cycle_servers.cycle
         end
       end
@@ -205,6 +215,16 @@ module AwsMissingTools
 
           # time_spent_inservice advances on each call. by this call, it has advanced beyond the minimum
           expect(cycle_servers.all_instances_inservice_for_time_period?).to eq true
+        end
+
+        it 'accepts a custom health check and calls it' do
+          custom_health_check = -> { true }
+          cycle_servers = CycleServers.new(opts, &custom_health_check)
+
+          expect(custom_health_check).to receive(:call).and_call_original
+          expect(group).not_to receive(:load_balancers)
+
+          expect(cycle_servers.all_instances_inservice?).to eq true
         end
       end
     
