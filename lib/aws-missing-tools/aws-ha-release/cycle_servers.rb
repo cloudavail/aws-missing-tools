@@ -18,7 +18,7 @@ module AwsMissingTools
       @logger = Logger.new(output)
       @logger.level = @opts[:log_level]
 
-      AWS.config(access_key_id: @opts[:aws_access_key], secret_access_key: @opts[:aws_secret_key], region: @opts[:region])
+      AWS.config(access_key_id: @opts[:aws_access_key], secret_access_key: @opts[:aws_secret_key], region: @opts[:region], max_retries: 20)
       @as = AWS::AutoScaling.new
       @group = @as.groups[@opts[:as_group_name]]
 
@@ -33,24 +33,27 @@ module AwsMissingTools
     end
 
     def cycle
-      %w(RemoveFromLoadBalancerLowPriority Terminate Launch HealthCheck AddToLoadBalancer).each do |process|
-        if @group.suspended_processes.keys.include? process
-          raise "AutoScaling process #{process} is currently suspended on #{@group.name} but is necessary for this script."
-        end
-      end
+      processes = @group.suspended_processes.keys & %w(RemoveFromLoadBalancerLowPriority Terminate Launch HealthCheck AddToLoadBalancer)
+      raise "AutoScaling process(es) #{processes.join(', ')} is/are currently suspended on #{group_name} but is/are necessary for this script." if processes.any?
 
       @group.suspend_processes PROCESSES_TO_SUSPEND
 
+      attributes = {}
       if max_size_change > 0
-        logger.warn "#{@group.name} has a max-size of #{@group.max_size}. In order to recycle instances max-size will be temporarily increased by #{max_size_change}."
-        @group.update(max_size: @group.max_size + max_size_change)
+        logger.warn "#{group_name} has a max-size of #{@max_size}. In order to recycle instances max-size will be temporarily increased by #{max_size_change}."
+        @max_size += max_size_change
+        attributes.merge!(max_size: @max_size)
       end
 
-      @group.update(desired_capacity: @group.desired_capacity + @opts[:num_simultaneous_instances])
+      @desired_capacity += @opts[:num_simultaneous_instances]
+      attributes.merge!(desired_capacity: @desired_capacity)
+      @group.update(attributes)
 
-      logger.info "The list of instances in Auto Scaling Group #{@group.name} that will be terminated is:#{@group.auto_scaling_instances.map{ |i| i.ec2_instance.id }.to_ary}"
+      auto_scaling_instances = @group.auto_scaling_instances
+      logger.info "The list of instances in Auto Scaling Group #{group_name} that will be terminated is:#{auto_scaling_instances.map{ |i| i.ec2_instance.id }.to_ary}"
       logger.info "The number of instances that will be brought up simultaneously is: #{@opts[:num_simultaneous_instances]}"
-      @group.auto_scaling_instances.to_a.each_slice(@opts[:num_simultaneous_instances]) do |instances|
+
+      auto_scaling_instances.to_a.each_slice(@opts[:num_simultaneous_instances]) do |instances|
         time_taken = 0
 
         until all_instances_inservice_for_time_period?
@@ -61,11 +64,9 @@ module AwsMissingTools
             logger.warn "The following settings were changed and will not be changed back by this script:"
 
             logger.warn "AutoScaling processes #{PROCESSES_TO_SUSPEND} were suspended."
-            logger.warn "The desired capacity was changed from #{@group.desired_capacity - @opts[:num_simultaneous_instances]} to #{@group.desired_capacity}."
+            logger.warn "The desired capacity was changed from #{@desired_capacity - @opts[:num_simultaneous_instances]} to #{@desired_capacity}."
 
-            if max_size_change > 0
-              logger.warn "The maximum size was changed from #{@group.max_size - max_size_change} to #{@group.max_size}"
-            end
+            logger.warn "The maximum size was changed from #{@max_size - max_size_change} to #{@max_size}" if max_size_change > 0
 
             raise
           else
@@ -74,11 +75,11 @@ module AwsMissingTools
           end
         end
 
-        logger.info "The new instance(s) was/were found to be healthy."
+        logger.info 'The new instance(s) was/were found to be healthy.'
 
         if using_elb?
           logger.info "#{@opts[:num_simultaneous_instances]} old instance(s) will now be removed from the load balancers."
-          instances.each { |instance| deregister_instance(instance.ec2_instance, @group.load_balancers) }
+          instances.each { |instance| deregister_instance(instance.ec2_instance, load_balancers) }
 
           logger.info "Sleeping for the ELB Timeout period of #{@opts[:elb_timeout]}"
           sleep @opts[:elb_timeout]
@@ -88,24 +89,34 @@ module AwsMissingTools
         instances.each { |instance| instance.terminate false }
       end
 
-      logger.info "#{@group.name} had its desired-capacity increased temporarily by #{@opts[:num_simultaneous_instances]} to a desired-capacity of #{@group.desired_capacity}."
-      logger.info "The desired-capacity of #{@group.name} will now be returned to its original desired-capacity of #{@group.desired_capacity - @opts[:num_simultaneous_instances]}."
-      @group.update(desired_capacity: @group.desired_capacity - @opts[:num_simultaneous_instances])
+      logger.info "#{group_name} had its desired-capacity increased temporarily by #{@opts[:num_simultaneous_instances]} to a desired-capacity of #{@desired_capacity}."
+      logger.info "The desired-capacity of #{group_name} will now be returned to its original desired-capacity of #{@desired_capacity - @opts[:num_simultaneous_instances]}."
+
+      @desired_capacity -= @opts[:num_simultaneous_instances]
+      attributes = {
+        desired_capacity: @desired_capacity
+      }
 
       if max_size_change > 0
-        logger.warn "#{@group.name} had its max_size increased temporarily by #{max_size_change} to a max_size of #{@group.max_size}."
-        logger.warn "The max_size of #{@group.name} will now be returned to its original max_size of #{@group.max_size - max_size_change}."
+        logger.warn "#{group_name} had its max_size increased temporarily by #{max_size_change} to a max_size of #{@max_size}."
+        logger.warn "The max_size of #{group_name} will now be returned to its original max_size of #{@max_size - max_size_change}."
 
-        @group.update(max_size: @group.max_size - max_size_change)
+        @max_size -= max_size_change
+        attributes.merge!(max_size: @max_size)
       end
 
+      @group.update(attributes)
       @group.resume_all_processes
     end
 
     def max_size_change
+      # okay to memoize even though there are instances variables inside because once this method is called, we never want the value to change
       @max_size_change ||= begin
-        if @group.max_size - @group.desired_capacity < @opts[:num_simultaneous_instances]
-          @group.desired_capacity + @opts[:num_simultaneous_instances] - @group.max_size
+        @desired_capacity = @group.desired_capacity
+        @max_size = @group.max_size
+
+        if @max_size - @desired_capacity < @opts[:num_simultaneous_instances]
+          @desired_capacity + @opts[:num_simultaneous_instances] - @max_size
         else
           0
         end
@@ -119,7 +130,7 @@ module AwsMissingTools
     end
 
     def instances_inservice?(load_balancer)
-      return false if load_balancer.instances.count != @group.desired_capacity
+      return false if load_balancer.instances.count != @desired_capacity
 
       load_balancer.instances.health.each do |instance_health|
         unless instance_health[:state] == 'InService'
@@ -134,7 +145,7 @@ module AwsMissingTools
 
     def all_instances_inservice?
       if using_elb?
-        @group.load_balancers.each do |load_balancer|
+        load_balancers.each do |load_balancer|
           return false unless instances_inservice?(load_balancer)
         end
       else
@@ -161,6 +172,14 @@ module AwsMissingTools
     end
 
     private
+
+    def group_name
+      @group_name ||= @group.name
+    end
+
+    def load_balancers
+      @load_balancers ||= @group.load_balancers
+    end
 
     def using_elb?
       @custom_health_check.nil?
