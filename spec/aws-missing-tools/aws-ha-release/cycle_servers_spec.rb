@@ -37,7 +37,7 @@ module AwsMissingTools
         it 'initializes the AWS connection' do
           as.groups.create opts[:as_group_name]
 
-          expect(AWS).to receive(:config).with(access_key_id: 'testaccesskey', secret_access_key: 'testsecretkey', region: 'test_region')
+          expect(AWS).to receive(:config).with(access_key_id: 'testaccesskey', secret_access_key: 'testsecretkey', region: 'test_region', max_retries: 20)
           CycleServers.new(opts)
         end
 
@@ -87,10 +87,8 @@ module AwsMissingTools
         it 'adjusts the max size as well as the desired capacity if the desired capacity is equal to it' do
           group.update(max_size: 1, desired_capacity: 1)
 
-          expect(group).to receive(:update).with(max_size: 2).ordered.and_call_original
-          expect(group).to receive(:update).with(desired_capacity: 2).ordered.and_call_original
-          expect(group).to receive(:update).with(desired_capacity: 1).ordered.and_call_original
-          expect(group).to receive(:update).with(max_size: 1).ordered.and_call_original
+          expect(group).to receive(:update).with(max_size: 2, desired_capacity: 2).ordered.and_call_original
+          expect(group).to receive(:update).with(desired_capacity: 1, max_size: 1).ordered.and_call_original
           cycle_servers.cycle
         end
 
@@ -114,6 +112,7 @@ module AwsMissingTools
 
         before do
           group.update(desired_capacity: 2)
+          cycle_servers.instance_variable_set :@desired_capacity, 2
         end
 
         it 'checks all instances across a given load balancer' do
@@ -179,6 +178,7 @@ module AwsMissingTools
             }
           ]
 
+          cycle_servers.instance_variable_set :@desired_capacity, 3
           group.update(desired_capacity: 3)
 
           expect(cycle_servers.instances_inservice?(load_balancer)).to eq false
