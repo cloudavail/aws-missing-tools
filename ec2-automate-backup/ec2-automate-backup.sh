@@ -71,6 +71,15 @@ create_EBS_Snapshot_Tags() {
   if $user_tags; then
     snapshot_tags="$snapshot_tags --tag Volume=${ebs_selected} --tag Created=$current_date"
   fi
+
+  instance_id=$(echo "$ebs_backup_list_complete"|grep ATTACH |grep ${ebs_selected} |awk '{print $3}')
+  volid_info=$(ec2-describe-instances --region $region --filter tag-key=Name "$instance_id")
+  if [ -n "$volid_info" ] ; then
+      mpoint=$(echo "$volid_info"|grep "$ebs_selected" |head -1|awk '{print $2}'|tr '/' '_')
+      instance_name=`echo "$volid_info"|grep Name |sed -e 's/.*Name\t\([^\b*]\)/\1/'`
+      snapshot_tags="$snapshot_tags --tag Volinfo=${mpoint}_${instance_name}"
+  fi  
+
   #if $snapshot_tags is not zero length then set the tag on the snapshot using ec2-create-tags
   if [[ -n $snapshot_tags ]]; then
     echo "Tagging Snapshot $ec2_snapshot_resource_id with the following Tags: $snapshot_tags"
