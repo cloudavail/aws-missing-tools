@@ -203,7 +203,7 @@ def return_desired_volume_attrs(args, volume_object):
     logging.info('desired volume type will be: {!s}'
                  .format(volume_attributes['type']))
 
-    if volume_attributes['type'] == 'standard':
+    if volume_attributes['type'] in ['standard', 'gp2']:
         validate_standard_volume_attrs(aws_limits=aws_limits, args=args, volume_object=volume_object)
     elif volume_attributes['type'] == 'io1':
         volume_attributes['iops'] = return_desired_iops(aws_limits=aws_limits,
@@ -304,7 +304,7 @@ parser.add_argument('--region',
 parser.add_argument('--volume-size', dest='volume_size', type=int, default=None,
                     help='set the volume size that the EBS volume should be.')
 parser.add_argument('--volume-type', dest='volume_type', default=None,
-                    choices=['standard', 'io1'],
+                    choices=['standard', 'io1', 'gp2'],
                     help='set the type of EBS volume.')
 args = parser.parse_args()
 
