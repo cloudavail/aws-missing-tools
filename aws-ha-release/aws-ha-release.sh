@@ -23,14 +23,14 @@ return_as_initial_maxsize()
 	if [[ $max_size_change -eq 1 ]]
 		then echo "$asg_group_name had its max-size increased temporarily by 1 to a max-size of $asg_temporary_max_size. $app_name will now return the max-size of $asg_group_name to its original max-size of $asg_initial_max_size."
 		#decrease max-size by 1
-		aws autoscaling update-auto-scaling-group --auto-scaling-group-name "$asg_group_name" --region $region --max-size=$asg_initial_max_size
+		aws --output=json autoscaling update-auto-scaling-group --auto-scaling-group-name "$asg_group_name" --region $region --max-size=$asg_initial_max_size
 	fi
 }
 
 return_as_initial_desiredcapacity()
 {
 	echo "$asg_group_name had its desired-capacity increased temporarily by 1 to a desired-capacity of $asg_temporary_desired_capacity. $app_name will now return the desired-capacity of $asg_group_name to its original desired-capacity of $asg_initial_desired_capacity."
-	aws autoscaling update-auto-scaling-group --auto-scaling-group-name "$asg_group_name" --region $region --desired-capacity=$asg_initial_desired_capacity
+	aws  --output=json --output=json autoscaling update-auto-scaling-group --auto-scaling-group-name "$asg_group_name" --region $region --desired-capacity=$asg_initial_desired_capacity
 }
 
 #set application defaults
@@ -72,7 +72,7 @@ case $region in
 esac
 
 #creates variable containing Auto Scaling Group
-asg_result=`aws autoscaling describe-auto-scaling-groups --auto-scaling-group-name "$asg_group_name" --region $region`
+asg_result=`aws  --output=json autoscaling describe-auto-scaling-groups --auto-scaling-group-name "$asg_group_name" --region $region`
 #validate Auto Scaling Group Exists
 #validate - the pipeline of echo -e "$asg_result" | grep -c "AutoScalingGroupARN"  must only return one group found - in the case below - more than one group has been found
 if [[ `echo -e "$asg_result" | grep -c "AutoScalingGroupARN"` > 1  ]]
@@ -101,7 +101,7 @@ asg_temporary_desired_capacity=$((asg_initial_desired_capacity+1))
 asg_instance_list=`echo "$asg_result" | grep InstanceId | sed 's/.*i-/i-/' | sed 's/",//'`
 
 #builds an array of load balancers
-asg_elbs=`aws autoscaling describe-auto-scaling-groups --auto-scaling-group-name "$asg_group_name" --region $region --output text | grep LOADBALANCERNAMES | sed "s/LOADBALANCERNAMES[[:space:]]//"`
+asg_elbs=`aws  --output=json autoscaling describe-auto-scaling-groups --auto-scaling-group-name "$asg_group_name" --region $region --output text | grep LOADBALANCERNAMES | sed "s/LOADBALANCERNAMES[[:space:]]//"`
 
 #if the max-size of the Auto Scaling Group is zero there is no reason to run
 if [[ $asg_initial_max_size -eq 0 ]]
@@ -111,20 +111,20 @@ fi
 echo -e "The list of Instances in Auto Scaling Group $asg_group_name that will be terminated is below:\n$asg_instance_list"
 
 as_processes_to_suspend="ReplaceUnhealthy AlarmNotification ScheduledActions AZRebalance"
-aws autoscaling suspend-processes --auto-scaling-group-name "$asg_group_name" --scaling-processes $as_processes_to_suspend --region $region
+aws  --output=json autoscaling suspend-processes --auto-scaling-group-name "$asg_group_name" --scaling-processes $as_processes_to_suspend --region $region
 
 #if the desired-capacity of an Auto Scaling Group group is greater than or equal to the max-size of an Auto Scaling Group, the max-size must be increased by 1 to cycle instances while maintaining desired-capacity. This is particularly true of groups of 1 instance (where we'd be removing all instances if we cycled).
 if [[ $asg_initial_desired_capacity -ge $asg_initial_max_size ]]
 	then echo "$asg_group_name has a max-size of $asg_initial_max_size. In order to recycle instances max-size will be temporarily increased by 1 to max-size $asg_temporary_max_size."
 	#increase max-size by 1
-	aws autoscaling update-auto-scaling-group --auto-scaling-group-name "$asg_group_name" --region $region --max-size=$asg_temporary_max_size
+	aws  --output=json autoscaling update-auto-scaling-group --auto-scaling-group-name "$asg_group_name" --region $region --max-size=$asg_temporary_max_size
 	#sets the flag that max-size has been changed
 	max_size_change="1"
 fi
 
 #increase groups desired capacity to allow for instance recycling without decreasing available instances below initial capacity
 echo "$asg_group_name is currently at $asg_initial_desired_capacity desired-capacity. $app_name will increase desired-capacity by 1 to desired-capacity $asg_temporary_desired_capacity."
-aws autoscaling update-auto-scaling-group --auto-scaling-group-name "$asg_group_name" --region $region --desired-capacity=$asg_temporary_desired_capacity
+aws  --output=json autoscaling update-auto-scaling-group --auto-scaling-group-name "$asg_group_name" --region $region --desired-capacity=$asg_temporary_desired_capacity
 
 #and begin recycling instances
 for instance_selected in $asg_instance_list
@@ -150,7 +150,7 @@ do
 
 		for index in "${!asg_elbs[@]}"
 		do
-			inservice_instance_list=`aws elb describe-instance-health --load-balancer-name ${asg_elbs[$index]} --region $region --output text | grep InService`
+			inservice_instance_list=`aws  --output=json elb describe-instance-health --load-balancer-name ${asg_elbs[$index]} --region $region --output text | grep InService`
 			inservice_instance_count=`echo "$inservice_instance_list" | wc -l`
 
 			if [ $index -eq 0 ]
@@ -177,14 +177,14 @@ do
 	echo "Instance $instance_selected will now be deregistered from ELBs \"${asg_elbs[@]}.\""
 	for elb in "${asg_elbs[@]}"
 	do
-		aws elb deregister-instances-from-load-balancer --load-balancer-name $elb --region $region --instances $instance_selected > /dev/null
+		aws  --output=json elb deregister-instances-from-load-balancer --load-balancer-name $elb --region $region --instances $instance_selected > /dev/null
 	done
 
 	#sleep for "elb_timeout" seconds so that the instance can complete all processing before being terminated
 	sleep $elb_timeout
 	#terminates a pre-existing instance within the autoscaling group
 	echo "Instance $instance_selected will now be terminated. By terminating this Instance, the actual capacity will be decreased to 1 under desired-capacity."
-	aws autoscaling terminate-instance-in-auto-scaling-group --region $region --instance-id $instance_selected --no-should-decrement-desired-capacity > /dev/null
+	aws  --output=json autoscaling terminate-instance-in-auto-scaling-group --region $region --instance-id $instance_selected --no-should-decrement-desired-capacity > /dev/null
 done
 
 #return max-size to initial size
@@ -193,4 +193,4 @@ return_as_initial_maxsize
 #return temporary desired-capacity to initial desired-capacity
 return_as_initial_desiredcapacity
 
-aws autoscaling resume-processes --auto-scaling-group-name "$asg_group_name" --region $region
+aws  --output=json autoscaling resume-processes --auto-scaling-group-name "$asg_group_name" --region $region
