@@ -52,14 +52,14 @@ get_EBS_List() {
 
 create_EBS_Snapshot_Tags() {
   #snapshot tags holds all tags that need to be applied to a given snapshot - by aggregating tags we ensure that ec2-create-tags is called only onece
-  snapshot_tags=""
+  snapshot_tags="Key=CreatedBy,Value=ec2-automate-backup"
   #if $name_tag_create is true then append ec2ab_${ebs_selected}_$current_date to the variable $snapshot_tags
   if $name_tag_create; then
     snapshot_tags="$snapshot_tags Key=Name,Value=ec2ab_${ebs_selected}_$current_date"
   fi
   #if $hostname_tag_create is true then append --tag InitiatingHost=$(hostname -f) to the variable $snapshot_tags
   if $hostname_tag_create; then
-    snapshot_tags="$snapshot_tags Key=InitiatingHost,Value='$(hostname -f)'"
+    snapshot_tags="$snapshot_tags Key=InitiatingHost,Value='$(hostname -s)'"
   fi
   #if $purge_after_date_fe is true, then append $purge_after_date_fe to the variable $snapshot_tags
   if [[ -n $purge_after_date_fe ]]; then
