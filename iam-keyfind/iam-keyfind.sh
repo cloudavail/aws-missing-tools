@@ -19,8 +19,10 @@ prerequisite_check() {
 
 get_all_keys() {
   for user in $users ; do
-    access_key=$(aws iam list-access-keys --user-name $user --query AccessKeyMetadata[*].AccessKeyId --output text)
-    echo "$user,$access_key"
+    access_keys=$(aws iam list-access-keys --user-name $user --query AccessKeyMetadata[*].AccessKeyId --output text)
+    for access_key in $access_keys ; do
+      echo "$user,$access_key"
+    done
   done
 }
 
@@ -29,14 +31,16 @@ find_key() {
   users_examined=0
   user_containing_key=""
   for user in $users ; do
-    access_key=$(aws iam list-access-keys --user-name $user --query AccessKeyMetadata[*].AccessKeyId --output text)
-    if [[ "$find_access_key" == "$access_key" ]] ; then 
-      key_found=true
-      user_containing_key=$user
-      break
-    else
-      users_examined=$((users_examined + 1))
-    fi
+    access_keys=$(aws iam list-access-keys --user-name $user --query AccessKeyMetadata[*].AccessKeyId --output text)
+    for access_key in $access_keys ; do
+      if [[ "$find_access_key" == "$access_key" ]] ; then 
+        key_found=true
+        user_containing_key=$user
+        break
+      else
+        users_examined=$((users_examined + 1))
+      fi
+    done
   done
   if $key_found ; then
     echo "The Access Key \"$find_access_key\" belongs to the IAM user named \"$user_containing_key.\""
