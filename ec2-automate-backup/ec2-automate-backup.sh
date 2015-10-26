@@ -1,5 +1,5 @@
 #!/bin/bash -
-# Date: 2014-04-12
+# Date: 2015-10-26
 # Version 0.10
 # License Type: GNU GENERAL PUBLIC LICENSE, Version 3
 # Author:
@@ -12,6 +12,7 @@
 # Dave Stern / https://github.com/davestern
 # Josef / https://github.com/J0s3f
 # buckelij / https://github.com/buckelij
+# https://github.com/ccomerImmerge
 
 #confirms that executables required for succesful script execution are available
 prerequisite_check() {
