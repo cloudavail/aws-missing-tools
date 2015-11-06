@@ -44,7 +44,7 @@ get_EBS_List() {
   esac
   #creates a list of all ebs volumes that match the selection string from above
   ebs_backup_list=$(aws ec2 describe-volumes --region $region $ebs_selection_string --output text --query 'Volumes[*].VolumeId')
-  #takes the output of the previous command 
+  #takes the output of the previous command
   ebs_backup_list_result=$(echo $?)
   if [[ $ebs_backup_list_result -gt 0 ]]; then
     echo -e "An error occurred when running ec2-describe-volumes. The error returned is below:\n$ebs_backup_list_complete" 1>&2 ; exit 70
@@ -110,25 +110,20 @@ esac
 }
 
 purge_EBS_Snapshots() {
-  # snapshot_purge_allowed is a string containing the SnapshotIDs of snapshots
-  # that contain a tag with the key value/pair PurgeAllow=true
-  snapshot_purge_allowed=$(aws ec2 describe-snapshots --region $region --filters Name=tag:PurgeAllow,Values=true --output text --query 'Snapshots[*].SnapshotId')
-  
-  for snapshot_id_evaluated in $snapshot_purge_allowed; do
-    #gets the "PurgeAfterFE" date which is in UTC with UNIX Time format (or xxxxxxxxxx / %s)
-    purge_after_fe=$(aws ec2 describe-snapshots --region $region --snapshot-ids $snapshot_id_evaluated --output text | grep ^TAGS.*PurgeAfterFE | cut -f 3)
-    #if purge_after_date is not set then we have a problem. Need to alert user.
-    if [[ -z $purge_after_fe ]]; then
-      #Alerts user to the fact that a Snapshot was found with PurgeAllow=true but with no PurgeAfterFE date.
-      echo "Snapshot with the Snapshot ID \"$snapshot_id_evaluated\" has the tag \"PurgeAllow=true\" but does not have a \"PurgeAfterFE=xxxxxxxxxx\" key/value pair. $app_name is unable to determine if $snapshot_id_evaluated should be purged." 1>&2
-    else
-      # if $purge_after_fe is less than $current_date then
-      # PurgeAfterFE is earlier than the current date
-      # and the snapshot can be safely purged
-      if [[ $purge_after_fe < $current_date ]]; then
-        echo "Snapshot \"$snapshot_id_evaluated\" with the PurgeAfterFE date of \"$purge_after_fe\" will be deleted."
-        aws_ec2_delete_snapshot_result=$(aws ec2 delete-snapshot --region $region --snapshot-id $snapshot_id_evaluated --output text 2>&1)
-      fi
+  # Query what we need up front, then begin deleting snapshots.
+  snapshots=$(aws ec2 describe-snapshots --filters Name=tag:PurgeAllow,Values=true --output text --query 'Snapshots[*].[Tags[?Key==`PurgeAfterFE`].Value | [0], SnapshotId]' | tr '\t' ' ')
+  echo "$snapshots" | while read line; do
+    snapshot_id=${line#* }
+    purge_after_fe=${line% *}
+
+    if [ ! $purge_after_fe ]; then
+      echo "Snapshot has 'PurgeAllow' tag, but not the 'PurgeAfterFE' tag. Unable to purge snapshot '$snapshot_id'"
+      continue
+    fi
+
+    if [[ $purge_after_fe < $current_date ]]; then
+      echo "Purging snapshot '$snapshot_id' (PurgeAfterFE:$purge_after_fe)"
+      aws_ec2_delete_snapshot_result=$(aws ec2 delete-snapshot --region $region --snapshot-id $snapshot_id --output text 2>&1)
     fi
   done
 }
@@ -208,7 +203,7 @@ for ebs_selected in $ebs_backup_list; do
   ec2_snapshot_resource_id=$(aws ec2 create-snapshot --region $region --description $ec2_snapshot_description --volume-id $ebs_selected --output text --query SnapshotId 2>&1)
   if [[ $? != 0 ]]; then
     echo -e "An error occurred when running ec2-create-snapshot. The error returned is below:\n$ec2_create_snapshot_result" 1>&2 ; exit 70
-  fi  
+  fi
   create_EBS_Snapshot_Tags
 done
 
