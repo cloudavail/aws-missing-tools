@@ -111,7 +111,7 @@ esac
 
 purge_EBS_Snapshots() {
   # Query what we need up front, then begin deleting snapshots.
-  snapshots=$(aws ec2 describe-snapshots --filters Name=tag:PurgeAllow,Values=true --output text --query 'Snapshots[*].[Tags[?Key==`PurgeAfterFE`].Value | [0], SnapshotId]' | tr '\t' ' ')
+  snapshots=$(aws ec2 describe-snapshots --region $region --filters Name=tag:PurgeAllow,Values=true --output text --query 'Snapshots[*].[Tags[?Key==`PurgeAfterFE`].Value | [0], SnapshotId]' | tr '\t' ' ')
   echo "$snapshots" | while read line; do
     snapshot_id=${line#* }
     purge_after_fe=${line% *}
