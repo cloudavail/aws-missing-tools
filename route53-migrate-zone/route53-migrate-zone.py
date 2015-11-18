@@ -71,7 +71,7 @@ destination_zone_name = config.get('destination_zone_values', 'destination_zone_
 # best would be to retreive the destination_zone_id using destination_zone_name
 destination_zone_id = config.get('destination_zone_values', 'destination_zone_id')
 
-record_types_to_migrate = ['A', 'CNAME', 'MX', 'TXT']
+record_types_to_migrate = ['A', 'CNAME', 'MX', 'NS', 'TXT']
 
 if source_zone_name != destination_zone_name:
     logging.info('{app_name!s} will rewrite domain names ending in {source_zone_name!s} to domain names ending in {destination_zone_name!s}'.format
@@ -164,6 +164,8 @@ for record in source_zone_records:
                                  .format(record_name=record.name))
                 exit(70)
         else:
+            if record.type == 'NS' and record.name == "%s." % destination_zone_name:
+                continue
             resource_record_dict[record.name] = boto.route53.record.Record(name=record.name,
                                                                            type=record.type,
                                                                            ttl=record.ttl,
