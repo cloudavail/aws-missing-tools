@@ -43,11 +43,11 @@ get_EBS_List() {
     *) echo "If you specify a selection_method (-s selection_method) for selecting EBS volumes you must select either \"volumeid\" (-s volumeid) or \"tag\" (-s tag)." 1>&2 ; exit 64 ;;
   esac
   #creates a list of all ebs volumes that match the selection string from above
-  ebs_backup_list=$(aws ec2 describe-volumes --region $region $ebs_selection_string --output text --query 'Volumes[*].VolumeId')
+  ebs_backup_list=$(aws ec2 describe-volumes --region $region $ebs_selection_string --output text --query 'Volumes[*].VolumeId' 2>&1)
   #takes the output of the previous command 
   ebs_backup_list_result=$(echo $?)
   if [[ $ebs_backup_list_result -gt 0 ]]; then
-    echo -e "An error occurred when running ec2-describe-volumes. The error returned is below:\n$ebs_backup_list_complete" 1>&2 ; exit 70
+    echo -e "An error occurred when running ec2-describe-volumes. The error returned is below:\n$ebs_backup_list" 1>&2 ; exit 70
   fi
 }
 
@@ -207,7 +207,7 @@ for ebs_selected in $ebs_backup_list; do
   ec2_snapshot_description="ec2ab_${ebs_selected}_$current_date"
   ec2_snapshot_resource_id=$(aws ec2 create-snapshot --region $region --description $ec2_snapshot_description --volume-id $ebs_selected --output text --query SnapshotId 2>&1)
   if [[ $? != 0 ]]; then
-    echo -e "An error occurred when running ec2-create-snapshot. The error returned is below:\n$ec2_create_snapshot_result" 1>&2 ; exit 70
+    echo -e "An error occurred when running ec2-create-snapshot. The error returned is below:\n$ec2_snapshot_resource_id" 1>&2 ; exit 70
   fi  
   create_EBS_Snapshot_Tags
 done
