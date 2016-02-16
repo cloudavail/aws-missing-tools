@@ -160,10 +160,10 @@ def return_desired_iops(aws_limits, args, volume_object, volume_size):
 
     # validate volume_attributes['iops'] settings with volume_attributes['size']
     # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html#EBSVolumeTypes_piops
-    max_allowed_iops = (aws_limits['max_iops_size_multiplier'] * volume_size)
+    max_allowed_iops = (aws_limits['max_iops_per_gib'] * volume_size)
     if desired_iops > max_allowed_iops:
         logging.critical('--iops may not be greater than {!s} times volume size. Maximum allowable iops is {!s}.'
-                         .format(aws_limits['max_iops_size_multiplier'], max_allowed_iops))
+                         .format(aws_limits['max_iops_per_gib'], max_allowed_iops))
         exit(1)
     
     logging.info('desired volume iops will be: {!s}'.format(desired_iops))
@@ -186,11 +186,11 @@ def return_desired_volume_attrs(args, volume_object):
     logging.debug('return_desired_volume_attrs called.')
 
     volume_attributes = {'size': None, 'volume_type': None, 'iops': None}
-    # max_iops_size_multiplier is used to determine the allowable number of iops
+    # max_iops_per_gib (gibibyte) is used to determine the allowable number of iops
     # given a volume size. iops can be no greater than 30 x volume size as of
     # 2013-11-17
     aws_limits = {'max_volume_size': 1024, 'min_iops': 100, 'max_iops': 4000,
-                  'max_iops_size_multiplier': 30}
+                  'max_iops_per_gib': 30}
 
     volume_attributes['size'] = return_desired_volume_size(aws_limits=aws_limits,
                                                            args=args,
