@@ -3,7 +3,6 @@
 # Date: 2013-11-17
 # Version 0.1
 # License Type: GNU GENERAL PUBLIC LICENSE, Version 3
-# Modified: 2016-02-24 pserrano (take tags from old volume to the new one)
 
 import argparse
 import logging
@@ -305,7 +304,7 @@ def wait_aws_event(object_in, object_type, wait_for_string):
 
 # creates ec2_connection object
 try:
-    ec2_connection = ec2.connect_to_region('eu-west-1')
+    ec2_connection = ec2.connect_to_region('us-east-1')
 except:
     logging.critical('An error occured when attempting to connect to the AWS API.')
     exit(1)
