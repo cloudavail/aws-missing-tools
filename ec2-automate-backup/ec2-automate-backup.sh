@@ -70,6 +70,28 @@ create_EBS_Snapshot_Tags() {
   if $user_tags; then
     snapshot_tags="$snapshot_tags Key=Volume,Value=${ebs_selected} Key=Created,Value=$current_date"
   fi
+  # copy specified tags to snapshot
+  if [[ -n $copytags ]]; then
+    tagquery=""
+    IFS=$',' read -r -a tags <<< "$copytags"
+    for i in "${tags[@]}"; do
+      tagquery="${tagquery}Key=='${i}' || "
+    done
+
+    if [[ -n $tagquery  ]]; then
+      tagquery="Tags[?${tagquery::-4}].[Key,Value]"
+
+      ec2_tag_list=$(aws ec2 describe-tags --filters "Name=resource-id,Values=${ebs_selected}" --query "${tagquery}" --output text 2>&1)
+      if [[ -n $ec2_tag_list ]]; then
+        IFS=$'\n' read -d '' -r -a lines <<< "$ec2_tag_list"
+
+        for i in "${lines[@]}"; do
+          parts=($i)
+          snapshot_tags="$snapshot_tags Key=${parts[0]},Value=${parts[1]}"
+        done
+      fi
+    fi
+  fi
   #if $snapshot_tags is not zero length then set the tag on the snapshot using aws ec2 create-tags
   if [[ -n $snapshot_tags ]]; then
     echo "Tagging Snapshot $ec2_snapshot_resource_id with the following Tags: $snapshot_tags"
@@ -151,13 +173,14 @@ user_tags=false
 purge_snapshots=false
 #handles options processing
 
-while getopts :s:c:r:v:t:k:pnhu opt; do
+while getopts :s:c:r:v:t:d:k:pnhu opt; do
   case $opt in
     s) selection_method="$OPTARG" ;;
     c) cron_primer="$OPTARG" ;;
     r) region="$OPTARG" ;;
     v) volumeid="$OPTARG" ;;
     t) tag="$OPTARG" ;;
+    d) copytags="$OPTARG" ;;
     k) purge_after_input="$OPTARG" ;;
     n) name_tag_create=true ;;
     h) hostname_tag_create=true ;;
