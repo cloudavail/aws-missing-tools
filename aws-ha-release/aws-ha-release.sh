@@ -101,7 +101,8 @@ asg_temporary_desired_capacity=$((asg_initial_desired_capacity+1))
 asg_instance_list=`echo "$asg_result" | grep InstanceId | sed 's/.*i-/i-/' | sed 's/",//'`
 
 #builds an array of load balancers
-asg_elbs=`aws autoscaling describe-auto-scaling-groups --auto-scaling-group-name "$asg_group_name" --region $region --output text | grep LOADBALANCERNAMES | sed "s/LOADBALANCERNAMES[[:space:]]//"`
+asg_elbs_str=`aws autoscaling describe-auto-scaling-groups --auto-scaling-group-name "$asg_group_name" --region $region --output text | grep LOADBALANCERNAMES | sed "s/LOADBALANCERNAMES[[:space:]]//"`
+asg_elbs=(${asg_elbs_str//$'\n'/ })
 
 #if the max-size of the Auto Scaling Group is zero there is no reason to run
 if [[ $asg_initial_max_size -eq 0 ]]
