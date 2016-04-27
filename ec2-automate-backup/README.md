@@ -20,7 +20,7 @@ ec2-automate-backup requires one of the following two parameters be provided:
     
 `-t <tag>` - the "tag" parameter is required if the "method" of selecting EBS volumes for snapshot is by tag (-s tag). The format for tag is key,Values=$desired_values (example: Backup,Values=true) and the correct method for running ec2-automate-backup in this manner is ec2-automate-backup -s tag -t Backup,Values=true".
 ## Optional Parameters:
-`-r <region>` - the region that contains the EBS volumes for which you wish to have a snapshot created.
+`-r <region>` - the region that contains the EBS volumes for which you wish to have a snapshot created (by default uses aws config region).
 
 `-s <selection_method>` - the selection method by which EBS volumes will be selected. Currently supported selection methods are "volumeid" and "tag." The selection method "volumeid" identifies EBS volumes for which a snapshot should be taken whereas the selection method "tag" identifies EBS volumes for which a snapshot should be taken by a filter that utilizes a Key and Value pair.
 
