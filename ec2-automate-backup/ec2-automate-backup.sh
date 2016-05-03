@@ -133,10 +133,6 @@ purge_EBS_Snapshots() {
   done
 }
 
-#calls prerequisitecheck function to ensure that all executables required for script execution are available
-prerequisite_check
-
-app_name=$(basename $0)
 #sets defaults
 selection_method="volumeid"
 #date_binary allows a user to set the "date" binary that is installed on their system and, therefore, the options that will be given to the date binary to perform date calculations
@@ -175,6 +171,11 @@ if [[ -n $cron_primer ]]; then
     echo "Cron Primer File \"$cron_primer\" Could Not Be Found." 1>&2 ; exit 70
   fi
 fi
+
+#calls prerequisitecheck function to ensure that all executables required for script execution are available
+prerequisite_check
+
+app_name=$(basename $0)
 
 #if region is not set then:
 if [[ -z $region ]]; then
