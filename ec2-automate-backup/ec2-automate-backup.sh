@@ -128,6 +128,9 @@ purge_EBS_Snapshots() {
   done
 }
 
+#calls prerequisitecheck function to ensure that all executables required for script execution are available
+prerequisite_check
+
 app_name=$(basename $0)
 #sets defaults
 selection_method="volumeid"
@@ -177,9 +180,6 @@ if [[ -z $region ]]; then
     region=$EC2_REGION
   fi
 fi
-
-#calls prerequisitecheck function to ensure that all executables required for script execution are available
-prerequisite_check
 
 #sets date variable
 current_date=$(date -u +%s)
