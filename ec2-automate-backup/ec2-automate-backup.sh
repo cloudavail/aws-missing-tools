@@ -133,9 +133,6 @@ purge_EBS_Snapshots() {
   done
 }
 
-#calls prerequisitecheck function to ensure that all executables required for script execution are available
-prerequisite_check
-
 app_name=$(basename $0)
 #sets defaults
 selection_method="volumeid"
@@ -175,6 +172,9 @@ if [[ -n $cron_primer ]]; then
     echo "Cron Primer File \"$cron_primer\" Could Not Be Found." 1>&2 ; exit 70
   fi
 fi
+
+#calls prerequisitecheck function to ensure that all executables required for script execution are available
+prerequisite_check
 
 #if region is not set then:
 if [[ -z $region ]]; then
