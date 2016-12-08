@@ -17,7 +17,7 @@ the above example would provide a single backup of the EBS volumeid vol-6d6a0527
 ec2-automate-backup requires one of the following two parameters be provided:
 
 `-v <volumeid>` - the "volumeid" parameter is required to select EBS volumes for snapshot if ec2-automate-backup is run using the "volumeid" selection method - the "volumeid" selection method is the default selection method.
-    
+
 `-t <tag>` - the "tag" parameter is required if the "method" of selecting EBS volumes for snapshot is by tag (-s tag). The format for tag is key,Values=$desired_values (example: Backup,Values=true) and the correct method for running ec2-automate-backup in this manner is ec2-automate-backup -s tag -t Backup,Values=true".
 ## Optional Parameters:
 `-r <region>` - the region that contains the EBS volumes for which you wish to have a snapshot created.
@@ -35,6 +35,8 @@ ec2-automate-backup requires one of the following two parameters be provided:
 `-p` - the -p flag will purge (meaning delete) all snapshots that were created more than "purge after days" ago. ec2-automate-backup looks at two tags to determine which snapshots should be deleted - the PurgeAllow and PurgeAfter tags. The tags must be set as follows: PurgeAllow=true and PurgeAfter=YYYY-MM-DD where YYYY-MM-DD must be before the present date.
 
 `-u` - the -u flag will tag snapshots with additional data so that snapshots can be more easily located. Currently the two user tags created are Volume="ebs_volume" and Created="date." These can be easily modified in code.
+
+`-i` - the -i flag will tag with the snapshot attached instance name.
 
 # Potential Uses and Methods of Use:
 * To backup multiple EBS volumes use ec2-automate-backup as follows: `ec2-automate-backup.sh -v "vol-6d6a0527 vol-636a0112"`
