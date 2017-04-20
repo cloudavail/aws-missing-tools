@@ -9,7 +9,7 @@ ec2-automate-backup was created to provide easy backup/snapshot functionality fo
 ec2-automate-backup requires the AWS Command Line Interface tool be installed and properly configured. Instructions for installing the AWS Command Line Interface tool is available at https://aws.amazon.com/cli/.
 ## Policy ( optional )
 You can omit environmental configuration by giving the policy to entire EC2 instance where you run the script with the following policy:
-`
+```json
 {
     "Statement": [
         {
@@ -27,7 +27,7 @@ You can omit environmental configuration by giving the policy to entire EC2 inst
         }
     ]
 }
-`
+```
 
 # Directions For Use:
 ## Example of Use:
