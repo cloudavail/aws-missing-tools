@@ -51,12 +51,23 @@ get_EBS_List() {
   fi
 }
 
+#get_Snapshot_List gets a list of just created snapshots
+get_Snapshot_List() {
+  #creates a list of all just created snapshots in $region
+  ebs_snapshot_list=$(aws ec2 describe-snapshots --region $region --filters Name=tag:Created,Values=$current_date --output text --query 'Snapshots[*].SnapshotId')
+  #takes the output of the previous command 
+  ebs_snapshot_list_result=$(echo $?)
+  if [[ $ebs_snapshot_list_result -gt 0 ]]; then
+    echo -e "An error occurred when running ec2-describe-snapshots. The error returned is below:\n$ebs_snapshot_list_result" 1>&2 ; exit 70
+  fi
+}
+
 create_EBS_Snapshot_Tags() {
   #snapshot tags holds all tags that need to be applied to a given snapshot - by aggregating tags we ensure that ec2-create-tags is called only onece
   snapshot_tags="Key=CreatedBy,Value=ec2-automate-backup"
   #if $name_tag_create is true then append ec2ab_${ebs_selected}_$current_date to the variable $snapshot_tags
   if $name_tag_create; then
-    snapshot_tags="$snapshot_tags Key=Name,Value=ec2ab_${ebs_selected}_$current_date"
+    snapshot_tags="$snapshot_tags Key=Name,Value=$ec2_snapshot_description"
   fi
   #if $hostname_tag_create is true then append --tag InitiatingHost=$(hostname -f) to the variable $snapshot_tags
   if $hostname_tag_create; then
@@ -75,6 +86,33 @@ create_EBS_Snapshot_Tags() {
     echo "Tagging Snapshot $ec2_snapshot_resource_id with the following Tags: $snapshot_tags"
     tags_argument="--tags $snapshot_tags"
     aws_ec2_create_tag_result=$(aws ec2 create-tags --resources $ec2_snapshot_resource_id --region $region $tags_argument --output text 2>&1)
+  fi
+}
+
+create_Alternate_Snapshot_Tags() {
+  #snapshot tags holds all tags that need to be applied to a given snapshot - by aggregating tags we ensure that ec2-create-tags is called only onece
+  snapshot_tags="Key=CreatedBy,Value=ec2-automate-backup"
+  #if $name_tag_create is true then append ec2ab_${ebs_selected}_$current_date to the variable $snapshot_tags
+  if $name_tag_create; then
+    snapshot_tags="$snapshot_tags Key=Name,Value=$ec2_snapshot_description"
+  fi
+  #if $hostname_tag_create is true then append --tag InitiatingHost=$(hostname -f) to the variable $snapshot_tags
+  if $hostname_tag_create; then
+    snapshot_tags="$snapshot_tags Key=InitiatingHost,Value='$(hostname -s)'"
+  fi
+  #if $purge_after_date_fe is true, then append $purge_after_date_fe to the variable $snapshot_tags
+  if [[ -n $purge_after_date_fe ]]; then
+    snapshot_tags="$snapshot_tags Key=PurgeAfterFE,Value=$purge_after_date_fe Key=PurgeAllow,Value=true"
+  fi
+  #if $user_tags is true, then append Volume=$ebs_selected and Created=$current_date to the variable $snapshot_tags
+  if $user_tags; then
+    snapshot_tags="$snapshot_tags Key=Volume,Value=${volume_id} Key=Created,Value=$current_date"
+  fi
+  #if $snapshot_tags is not zero length then set the tag on the snapshot using aws ec2 create-tags
+  if [[ -n $snapshot_tags ]]; then
+    echo "Tagging Snapshot $alternate_snapshot_resource_id with the following Tags: $snapshot_tags"
+    tags_argument="--tags $snapshot_tags"
+    aws_ec2_create_tag_result=$(aws ec2 create-tags --resources $alternate_snapshot_resource_id --region $alternate_region $tags_argument --output text 2>&1)
   fi
 }
 
@@ -133,6 +171,30 @@ purge_EBS_Snapshots() {
   done
 }
 
+purge_Alternate_Snapshots() {
+  # snapshot_purge_allowed is a string containing the SnapshotIDs of snapshots
+  # that contain a tag with the key value/pair PurgeAllow=true
+  snapshot_purge_allowed=$(aws ec2 describe-snapshots --region $alternate_region --filters Name=tag:PurgeAllow,Values=true --output text --query 'Snapshots[*].SnapshotId')
+  
+  for snapshot_id_evaluated in $snapshot_purge_allowed; do
+    #gets the "PurgeAfterFE" date which is in UTC with UNIX Time format (or xxxxxxxxxx / %s)
+    purge_after_fe=$(aws ec2 describe-snapshots --region $alternate_region --snapshot-ids $snapshot_id_evaluated --output text | grep ^TAGS.*PurgeAfterFE | cut -f 3)
+    #if purge_after_date is not set then we have a problem. Need to alert user.
+    if [[ -z $purge_after_fe ]]; then
+      #Alerts user to the fact that a Snapshot was found with PurgeAllow=true but with no PurgeAfterFE date.
+      echo "Snapshot with the Snapshot ID \"$snapshot_id_evaluated\" has the tag \"PurgeAllow=true\" but does not have a \"PurgeAfterFE=xxxxxxxxxx\" key/value pair. $app_name is unable to determine if $snapshot_id_evaluated should be purged." 1>&2
+    else
+      # if $purge_after_fe is less than $current_date then
+      # PurgeAfterFE is earlier than the current date
+      # and the snapshot can be safely purged
+      if [[ $purge_after_fe < $current_date ]]; then
+        echo "Snapshot \"$snapshot_id_evaluated\" with the PurgeAfterFE date of \"$purge_after_fe\" will be deleted."
+        aws_ec2_delete_snapshot_result=$(aws ec2 delete-snapshot --region $alternate_region --snapshot-id $snapshot_id_evaluated --output text 2>&1)
+      fi
+    fi
+  done
+}
+
 #calls prerequisitecheck function to ensure that all executables required for script execution are available
 prerequisite_check
 
@@ -149,9 +211,13 @@ hostname_tag_create=false
 user_tags=false
 #sets the Purge Snapshot feature to false - if purge_snapshots=true then snapshots will be purged
 purge_snapshots=false
-#handles options processing
+#sets the copy snapshot to alternate region to false for backward compatibility
+copy_to_alternate_region=false
+#default alternate region for snapshot copy
+alternate_region="eu-west-1"
 
-while getopts :s:c:r:v:t:k:pnhu opt; do
+#handles options processing
+while getopts :s:c:r:v:t:k:g:apnhu opt; do
   case $opt in
     s) selection_method="$OPTARG" ;;
     c) cron_primer="$OPTARG" ;;
@@ -159,6 +225,8 @@ while getopts :s:c:r:v:t:k:pnhu opt; do
     v) volumeid="$OPTARG" ;;
     t) tag="$OPTARG" ;;
     k) purge_after_input="$OPTARG" ;;
+    g) alternate_region="$OPTARG" ;;
+    a) copy_to_alternate_region=true ;;
     n) name_tag_create=true ;;
     h) hostname_tag_create=true ;;
     p) purge_snapshots=true ;;
@@ -204,8 +272,11 @@ get_EBS_List
 
 #the loop below is called once for each volume in $ebs_backup_list - the currently selected EBS volume is passed in as "ebs_selected"
 for ebs_selected in $ebs_backup_list; do
-  ec2_snapshot_description="ec2ab_${ebs_selected}_$current_date"
+	volume_name="Unknown"
+	volume_name=$(aws ec2 describe-tags --region $region --filters "Name=resource-id,Values=$ebs_selected" "Name=resource-type,Values=volume" "Name=key,Values=Name" --query 'Tags[0].{Value:Value}' --output text 2>&1)
+  ec2_snapshot_description="${volume_name}_${ebs_selected}_$current_date"
   ec2_snapshot_resource_id=$(aws ec2 create-snapshot --region $region --description $ec2_snapshot_description --volume-id $ebs_selected --output text --query SnapshotId 2>&1)
+  ec2_create_snapshot_result=$(echo $?)
   if [[ $? != 0 ]]; then
     echo -e "An error occurred when running ec2-create-snapshot. The error returned is below:\n$ec2_create_snapshot_result" 1>&2 ; exit 70
   fi  
@@ -216,4 +287,31 @@ done
 if $purge_snapshots; then
   echo "Snapshot Purging is Starting Now."
   purge_EBS_Snapshots
+fi
+
+#echo "Sleeping until snapshots complete."
+#sleep 2m
+
+#the loop below is called once for each snapshot in $ebs_snapshot_list - the currently selected snapshot is passed in as "ebs_selected"
+if $copy_to_alternate_region; then
+	get_Snapshot_List
+	for ebs_selected in $ebs_snapshot_list; do
+		volume_id=$(aws ec2 describe-tags --region $region --filters "Name=resource-id,Values=$ebs_selected" "Name=resource-type,Values=snapshot" "Name=key,Values=Volume" --query 'Tags[0].{Value:Value}' --output text 2>&1)
+		volume_name="Unknown"
+		volume_name=$(aws ec2 describe-tags --region $region --filters "Name=resource-id,Values=$volume_id" "Name=resource-type,Values=volume" "Name=key,Values=Name" --query 'Tags[0].{Value:Value}' --output text 2>&1)
+		ec2_snapshot_description="${volume_name}_${volume_id}_$current_date"
+		alternate_snapshot_resource_id=$(aws --region $alternate_region ec2 copy-snapshot --source-region $region --description $ec2_snapshot_description --source-snapshot-id $ebs_selected --output text --query SnapshotId 2>&1)
+		ec2_create_snapshot_result=$(echo $?)
+		if [[ $? != 0 ]]; then
+			echo -e "An error occurred when running ec2-copy-snapshot. The error returned is below:\n$ec2_create_snapshot_result" 1>&2 ; exit 70
+		fi
+		create_Alternate_Snapshot_Tags
+		# Trying to manage the AWS limit of 5 concurrent cross-region copies. Choose something between 1-2 minutes depending on size and distance.
+		sleep 60
+	done
+fi
+
+if $purge_snapshots && $copy_to_alternate_region; then
+  echo "Alternate Snapshot Purging is Starting Now."
+  purge_Alternate_Snapshots
 fi

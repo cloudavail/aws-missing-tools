@@ -7,12 +7,33 @@ ec2-automate-backup was created to provide easy backup/snapshot functionality fo
 
 # Installation Instructions:
 ec2-automate-backup requires the AWS Command Line Interface tool be installed and properly configured. Instructions for installing the AWS Command Line Interface tool is available at https://aws.amazon.com/cli/.
+## Policy ( optional )
+You can omit environmental configuration by giving the policy to entire EC2 instance where you run the script with the following policy:
+```json
+{
+    "Statement": [
+        {
+            "Action": [
+                "ec2:DescribeVolumes",
+                "ec2:CreateSnapshot",
+                "ec2:DescribeSnapshots",
+                "ec2:DeleteSnapshot",
+                "ec2:CreateTags",
+                "ec2:CopySnapshot",
+                "ec2:DescribeTags"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        }
+    ]
+}
+```
 
 # Directions For Use:
 ## Example of Use:
-`ec2-automate-backup.sh -v vol-6d6a0527`
+`./ec2-automate-backup.sh -r us-west-2 -s tag -t "Backup,Values=true" -k 44 -p -u -n -a`
 
-the above example would provide a single backup of the EBS volumeid vol-6d6a0527. The snapshot would be created with the description "vol-6d6a0527_2012-09-07".
+the above example would provide a backup of all EBS volumes from 'Oregon' with tag 'Backup' set to 'true' with additional copy to 'Ireland'.
 ## Required Parameters:
 ec2-automate-backup requires one of the following two parameters be provided:
 
@@ -36,6 +57,10 @@ ec2-automate-backup requires one of the following two parameters be provided:
 
 `-u` - the -u flag will tag snapshots with additional data so that snapshots can be more easily located. Currently the two user tags created are Volume="ebs_volume" and Created="date." These can be easily modified in code.
 
+`-a` - the -a flag will make additional copy of the snapshot to alternate AWS region ( defaults to eu-west-1 )
+
+`-g <AWS_region>` - the AWS region for additional copy of the snapshot
+
 # Potential Uses and Methods of Use:
 * To backup multiple EBS volumes use ec2-automate-backup as follows: `ec2-automate-backup.sh -v "vol-6d6a0527 vol-636a0112"`
 * To backup a selected group of EBS volumes on a daily schedule tag each volume you wish to backup with the tag "Backup=true" and run ec2-automate-backup using cron as follows: `0 0 * * * ec2-automate-backup.sh -s tag -t "Backup,Values=true"`
@@ -44,9 +69,6 @@ ec2-automate-backup requires one of the following two parameters be provided:
  - `0 0 1 * * ec2-user /home/ec2-user/ec2-automate-backup.sh -s tag -t "Backup-Monthly,Values=true"`
 * To perform daily backup using cron and to load environment configuration with a "cron-primer" file:
  - `0 0 * * * ec2-user /home/ec2-user/ec2-automate-backup.sh -c /home/ec2-user/cron-primer.sh -s tag -t "Backup,Values=true"`
-
-# Additional Information:
-the file "ec2ab - IAM User Required Permissions.json" contains the IAM permissions required to run ec2-automate-backup.sh in with the least permissions required as of 2012-11-21.
 
 - Author: Colin Johnson / colin@cloudavail.com
 - Date: 2015-10-26
