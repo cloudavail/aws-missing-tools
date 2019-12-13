@@ -55,6 +55,16 @@ def create_volume(snapshot_object, size, availability_zone, iops=None,
     logging.info('new volume id is: {!s}'.format(volume_object.id))
     return volume_object
 
+def create_tags_volume(volume_object,volume_old_tags):
+    ''' given a new volume we assign the older tags '''
+    logging.debug('create_tag_volume called.')
+    logging.info('add the previous tags to the new volume: {!s}'.format(volume_object.id))
+    try:
+        volume_object.add_tags(volume_old_tags)
+        volume_object.tags.update()
+    except exception.EC2ResponseError:
+        logging.debug('An error ocurred when attempting to create tags to volume {!s}.'.format(volume_object.id))
+
 
 def detach_volume(volume_object):
     ''' given a boto.ec2.volume.Volume object, detaches it and waits for the
@@ -96,6 +106,19 @@ def get_block_device_volume(ec2_connection, volume_id):
     get_all_volumes_result = ec2_connection.get_all_volumes(volume_ids=[volume_id])
     volume_object = get_all_volumes_result[0]
     return volume_object
+
+def get_actual_volume_tags(ec2_connection, volume_id):
+    '''given and volume object get the current tags assigned on it
+    to create on the new volume.'''
+    logging.debug('get_actual_volume_tags called.')
+    get_all_volumes_result = ec2_connection.get_all_volumes(volume_ids=[volume_id])
+    volume_object = get_all_volumes_result[0]
+    volume_all_tags = volume_object.tags
+    if len(volume_all_tags) > 0:
+        logging.info('Current volume_id {!s} has the following tags (will be reasigned to the new volume):.'.format(volume_id))
+        for tag in volume_all_tags:
+            logging.info('{!s} : {!s}'.format(tag,volume_all_tags[tag]))
+    return volume_all_tags
 
 
 def get_selected_instances(instance_id):
@@ -350,6 +373,9 @@ block_device_type = get_block_device_type(selected_device,
 previous_volume = get_block_device_volume(ec2_connection,
                                           block_device_type.volume_id)
 
+# given a device, capture the actual tags created on it
+volume_old_tags = get_actual_volume_tags(ec2_connection, block_device_type.volume_id)
+
 desired_volume_attrs = return_desired_volume_attrs(args=args,
                                                    volume_object=previous_volume)
 
@@ -377,3 +403,7 @@ if instance_initial_state == unicode('running'):
                  .format(selected_instance.id, instance_initial_state,
                          selected_instance.id))
     start_instance(instance_object=selected_instance)
+
+#add tags to new volumen
+if len(volume_old_tags) > 0:
+    create_tags_volume(new_volume,volume_old_tags)
