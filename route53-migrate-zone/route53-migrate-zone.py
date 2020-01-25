@@ -5,6 +5,7 @@
 # License Type: GNU GENERAL PUBLIC LICENSE, Version 3
 
 import argparse
+from collections import defaultdict
 import ConfigParser
 import logging
 import os
@@ -24,14 +25,14 @@ def commit_record_changeset(destination_zone_record_changeset):
         exit(69)
 
 
-def diff_record(record_a, record_a_object, record_b, record_b_object):
+def diff_record(record, destination_zone_existing_resource_record_dict):
     '''diff_record compares two different resource records'''
     compare_values = ['type', 'ttl', 'resource_records',
                       'alias_hosted_zone_id', 'alias_dns_name', 'identifier', 'weight', 'region']
     diff_record_result = False
 
     for value in compare_values:
-        if getattr(record, value) != getattr(destination_zone_existing_resource_record_dict[record.name], value):
+        if getattr(record, value) != getattr(destination_zone_existing_resource_record_dict[record.name][record.type], value):
             diff_record_result = True
     return diff_record_result
 
@@ -71,7 +72,7 @@ destination_zone_name = config.get('destination_zone_values', 'destination_zone_
 # best would be to retreive the destination_zone_id using destination_zone_name
 destination_zone_id = config.get('destination_zone_values', 'destination_zone_id')
 
-record_types_to_migrate = ['A', 'CNAME', 'MX', 'TXT']
+record_types_to_migrate = ['A', 'AAAA', 'CNAME', 'MX', 'PTR', 'SRV', 'TXT']
 
 if source_zone_name != destination_zone_name:
     logging.info('{app_name!s} will rewrite domain names ending in {source_zone_name!s} to domain names ending in {destination_zone_name!s}'.format
@@ -113,13 +114,13 @@ destination_zone_records = destination_zone.get_records()
 resource_record_dict = {}
 # destination_zone_existing_resource_record_dict will be used to store all
 # resource records that exist in destination zone
-destination_zone_existing_resource_record_dict = {}
+destination_zone_existing_resource_record_dict = defaultdict(dict)
 
 # creates a set of changes to be delivered to Route53
 destination_zone_record_changeset = boto.route53.record.ResourceRecordSets(destination_connection, destination_zone_id)
 
 for record in destination_zone_records:
-    destination_zone_existing_resource_record_dict[record.name] = record
+    destination_zone_existing_resource_record_dict[record.name][record.type] = record
 
 # counts of records - should be replaced by dictionary
 examined_record_count = 0
@@ -142,26 +143,29 @@ for record in source_zone_records:
                           .format(record_name=record.name, destination_record=destination_record))
             record.name = destination_record
 
+        # logging.info('old record name/type %s %s' % (record.name, record.type))
+        # logging.info('dest dict %s' % (destination_zone_existing_resource_record_dict.keys()))
         # test if record exists in destination_zone and has same type
-        if (record.name in destination_zone_existing_resource_record_dict and
-           record.type == destination_zone_existing_resource_record_dict[record.name].type):
-
+        if (record.type in destination_zone_existing_resource_record_dict[record.name]):
+            logging.info('record type in both %s %s' % (record.name, record.type))
             existing_records_in_destination_zone_count += 1
             # compare records in source_domain and destination_domain, store result as diff_result
-            diff_result = diff_record(record.name, record, record.name, destination_zone_existing_resource_record_dict)
+            diff_result = diff_record(record, destination_zone_existing_resource_record_dict)
             if diff_result is True:
                 different_records_in_destination_zone_count += 1
-                logging.info('Record {record_name!s} exists in source zone {source_zone_name!s} and destination zone {destination_zone_name!s} and is different.'
-                             .format(record_name=record.name, source_zone_name=source_zone_name,
-                                     destination_zone_name=destination_zone_name))
+                logging.warning('Record {record_name!s} {record_type!s} exists in source zone {source_zone_name!s} and destination zone {destination_zone_name!s} and is different.'
+                                .format(record_name=record.name, record_type=record.type, source_zone_name=source_zone_name,
+                                        destination_zone_name=destination_zone_name))
+                logging.warning('src record: {record}'.format(record=record))
+                logging.warning('dst record: {record}'.format(record=destination_zone_existing_resource_record_dict[record.name][record.type]))
             elif diff_result is False:
                 identical_records_in_destination_zone_count += 1
                 logging.info('Record {record_name!s} exists in source zone {source_zone_name!s} and destination zone {destination_zone_name!s} and is identical.'
                              .format(record_name=record.name, source_zone_name=source_zone_name,
                                      destination_zone_name=destination_zone_name))
             else:
-                logging.critical('Diff of record {record_name!s} failed.'
-                                 .format(record_name=record.name))
+                logging.critical('Diff of record {record_name!s} {record_type!s} failed.'
+                                 .format(record_name=record.name, record_type=record.type))
                 exit(70)
         else:
             resource_record_dict[record.name] = boto.route53.record.Record(name=record.name,
