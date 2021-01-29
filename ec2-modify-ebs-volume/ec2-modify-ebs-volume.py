@@ -92,7 +92,6 @@ def get_block_device_volume(ec2_connection, volume_id):
     ''' given an ec2_connection object and a volume_id, returns a volume
  object'''
     logging.debug('get_block_device_volume called.')
-    volume_object = None
     get_all_volumes_result = ec2_connection.get_all_volumes(volume_ids=[volume_id])
     volume_object = get_all_volumes_result[0]
     return volume_object
@@ -116,11 +115,15 @@ def get_selected_instances(instance_id):
 def return_desired_volume_size(aws_limits, args, volume_object):
     # determine volume_attributes['size']
     desired_volume_size = None
+    if args.volume_type is 'standard':
+        max_size = aws_limits['max_volume_size_magnetic']
+    else:
+        max_size = aws_limits['max_volume_size_ssd']
+
     if args.volume_size is not None:
-        if args.volume_size > aws_limits['max_volume_size']:
-            logging.critical('--volume-size can not be greater than {!s}. You requested --volume-size {!s}.'
-                             .format(aws_limits['max_volume_size'],
-                                     args.volume_size))
+        if args.volume_size > max_size:
+            logging.critical('--volume-size for {!s} can not be greater than {!s}. You requested --volume-size {!s}.'
+                             .format(args.volume_type, max_size, args.volume_size))
             exit(1)
         else:
             desired_volume_size = args.volume_size
@@ -143,8 +146,8 @@ def return_desired_iops(aws_limits, args, volume_object, volume_size):
     # handle the condition where the user has input --volume-type io1 and
     # not input an --iops value
     if args.iops is None:
-        if args.volume_type is not None:
-            logging.critical('if a --volume-type except standard is specified --iops <int> must be specified as well.')
+        if args.volume_type is 'io1':
+            logging.critical('if a --volume-type of io1 is specified --iops <int> must be specified as well.')
             exit(1)
         else:
             desired_iops = volume_object.iops
@@ -160,16 +163,17 @@ def return_desired_iops(aws_limits, args, volume_object, volume_size):
 
     # validate volume_attributes['iops'] settings with volume_attributes['size']
     # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html#EBSVolumeTypes_piops
-    max_allowed_iops = (aws_limits['max_iops_size_multiplier'] * volume_size)
+    max_allowed_iops = (aws_limits['max_iops_per_gib'] * volume_size)
     if desired_iops > max_allowed_iops:
         logging.critical('--iops may not be greater than {!s} times volume size. Maximum allowable iops is {!s}.'
-                         .format(aws_limits['max_iops_size_multiplier'], max_allowed_iops))
+                         .format(aws_limits['max_iops_per_gib'], max_allowed_iops))
         exit(1)
     
     logging.info('desired volume iops will be: {!s}'.format(desired_iops))
     return desired_iops
 
 
+# used for validating 'standard' (magnetic) or 'gp2' (SSD) volume
 def validate_standard_volume_attrs(args, volume_object, aws_limits):
     if args.iops is not None:
         logging.critical('--iops can only be used if --volume-type io1.')
@@ -186,11 +190,22 @@ def return_desired_volume_attrs(args, volume_object):
     logging.debug('return_desired_volume_attrs called.')
 
     volume_attributes = {'size': None, 'volume_type': None, 'iops': None}
-    # max_iops_size_multiplier is used to determine the allowable number of iops
-    # given a volume size. iops can be no greater than 30 x volume size as of
-    # 2013-11-17
-    aws_limits = {'max_volume_size': 1024, 'min_iops': 100, 'max_iops': 4000,
-                  'max_iops_size_multiplier': 30}
+
+    # Limits are current as of 2015-3-19:
+    # https://aws.amazon.com/about-aws/whats-new/2015/03/amazon-ebs-increases-maximum-performance-size/
+    # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html
+    aws_limits = {
+        'max_volume_size_ssd': 16384,  # 'gp2' or 'io1' volume type
+        'max_volume_size_magnetic': 1024,  # 'standard' volume type
+
+        # max_iops_per_gib (gibibyte) is used to determine the allowable number of iops
+        # given a volume size for io1 provisioned volumes
+        'max_iops_per_gib': 30,
+
+        # io1 min_iops = (min volume of 4 GB for io1) x (30 max_iops_per_gib) = 120
+        'min_iops': 120,
+        'max_iops': 20000,
+    }
 
     volume_attributes['size'] = return_desired_volume_size(aws_limits=aws_limits,
                                                            args=args,
@@ -211,7 +226,7 @@ def return_desired_volume_attrs(args, volume_object):
                                                         volume_object=volume_object,
                                                         volume_size=volume_attributes['size'])
     else:
-        logging.critical('Supported --volume-types are \'io1\' and \'standard\'.')
+        logging.critical('Supported --volume-types are \'io1\', \'gp2\', and \'standard\'.')
         exit(1)
     return volume_attributes
 
@@ -302,7 +317,7 @@ parser.add_argument('--region',
                     help='set the region where instances should be located.',
                     default='us-east-1', choices=aws_regions)
 parser.add_argument('--volume-size', dest='volume_size', type=int, default=None,
-                    help='set the volume size that the EBS volume should be.')
+                    help='set the volume size (GB) that the resized EBS volume should be.')
 parser.add_argument('--volume-type', dest='volume_type', default=None,
                     choices=['standard', 'io1', 'gp2'],
                     help='set the type of EBS volume.')
