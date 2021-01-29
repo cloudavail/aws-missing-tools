@@ -279,12 +279,19 @@ def wait_aws_event(object_in, object_type, wait_for_string):
     return object_status
 
 
+def get_region_connection(region):
+    try:
+        logging.info('establishing AWS API connection with region {!s}'.format(region))
+        return ec2.connect_to_region(region)
+    except:
+        logging.critical('An error occured when attempting to connect to the AWS region ' + region)
+        exit(1)
+
+
+default_region = 'us-east-1'
 # creates ec2_connection object
-try:
-    ec2_connection = ec2.connect_to_region('us-east-1')
-except:
-    logging.critical('An error occured when attempting to connect to the AWS API.')
-    exit(1)
+ec2_connection = get_region_connection(default_region)
+
 # aws_regions contains a list of strings representing AWS regions
 aws_regions = [ (str(region.name)) for region in ec2_connection.get_all_regions() ]
 
@@ -300,7 +307,7 @@ parser.add_argument('--log-level', dest='log_level', default='INFO',
                     help='set the log level when running {!s}.'.format(app_name))
 parser.add_argument('--region',
                     help='set the region where instances should be located.',
-                    default='us-east-1', choices=aws_regions)
+                    default=default_region, choices=aws_regions)
 parser.add_argument('--volume-size', dest='volume_size', type=int, default=None,
                     help='set the volume size that the EBS volume should be.')
 parser.add_argument('--volume-type', dest='volume_type', default=None,
@@ -316,6 +323,10 @@ logging.basicConfig(level=log_level, format=log_format)
 region = args.region
 instance_id = args.instance_id
 device = args.device
+
+# reconnect if we want to use a non-default region
+if region != default_region:
+    ec2_connection = get_region_connection(region)
 
 # gets an instance object corresponding to the instance_id
 selected_instance = get_selected_instances(instance_id)
